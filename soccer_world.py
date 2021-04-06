@@ -28,12 +28,15 @@ def config_window():
                      orient="horizontal", label='speed', length=300)
     scale.set(speed)
     scale.pack()
-    button = tk.Button(window, text="Start Game", height=5, width=20, command=lambda: main())
-    button.pack()
-    scale2 = tk.Scale(window, from_=0, to=0.5, command=set_friction,
-                     orient="horizontal", label='sin', length=300, resolution=0.01)
+
+    scale2 = tk.Scale(window, from_=0, to=1, command=set_friction,
+                     orient="horizontal", label='friction', length=300, resolution=0.01)
     scale2.set(0.1)
     scale2.pack()
+
+    button = tk.Button(window, text="Start Game", height=5, width=20, command=lambda: main())
+    button.pack()
+
     window.mainloop()
 
 def drawLine(disp, ball, robot):
@@ -43,6 +46,9 @@ def drawLine(disp, ball, robot):
 def main():
     display_width = 500
     display_height = 300
+    white = (255, 255, 255)
+    green = (0, 255, 0)
+    blue = (0, 0, 128)
 
     pygame.init()
     clock = pygame.time.Clock()
@@ -66,6 +72,7 @@ def main():
     group.add(ball2)
     group.add(door)
 
+    font = pygame.font.Font('freesansbold.ttf', 12)
     while True:
         clock.tick(speed)
 
@@ -89,11 +96,17 @@ def main():
                 pygame.quit()
 
         if pygame.sprite.collide_rect(door, ball):
+            ball.x = door.rect.width
+            ball.dx = - ball.dx
             print("Score")
 
-        display.fill((255, 255, 255))
+        display.fill(white)
         group.update()
         group.draw(display)
+    
+        text = font.render(f'ball_dx:{round(ball.dx,2)}, ball_dy:{round(ball.dy,2)}, robot_dx:{round(robot.dx,2)}, robot_dy:{round(robot.dy,2)}', True, blue, white)
+        textRect = text.get_rect().center = (0 , display_width//2 )
+        display.blit(text, textRect)
         # drawLine(display, ball, robot)
         pygame.display.update()
 
