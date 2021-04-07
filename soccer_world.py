@@ -8,12 +8,17 @@ from Robot import Robot
 from Door import Door
 
 speed = 30
-friction = 0.2
+friction = 0.1
+robot_step = 5
 
 
 def set_speed(scale_value):
     global speed
     speed = int(scale_value)
+
+def robot_speed(scale_value):
+    global robot_step
+    robot_step = int(scale_value)
 
 def set_friction(scale_value):
     global friction
@@ -31,8 +36,14 @@ def config_window():
 
     scale2 = tk.Scale(window, from_=0, to=1, command=set_friction,
                      orient="horizontal", label='friction', length=300, resolution=0.01)
-    scale2.set(0.1)
+    scale2.set(friction)
     scale2.pack()
+
+    scale3 = tk.Scale(window, from_=1, to=20, command=robot_speed,
+                     orient="horizontal", label='robot speed', length=300, resolution=1)
+    scale3.set(robot_step)
+    scale3.pack()
+
 
     button = tk.Button(window, text="Start Game", height=5, width=20, command=lambda: main())
     button.pack()
@@ -41,7 +52,7 @@ def config_window():
 
 def drawLine(disp, ball, robot):
     pygame.draw.line(disp, start_pos=(ball.rect.x+ball.radius,ball.rect.y+ball.radius), 
-                    end_pos=(robot.rect.x+robot.rect.width/2, robot.rect.y), color=[128,128,0])
+                    end_pos=(robot.rect.x+robot.rect.width/2, robot.rect.y+robot.rect.height/2), color=[128,128,0])
     
 def main():
     display_width = 500
@@ -63,6 +74,7 @@ def main():
     robot = Robot([0, 128, 255], [40, 40])
     robot.add_ball(ball)
     robot.add_ball(ball2)
+    robot.move_step = robot_step
 
     door = Door([255, 0, 0], [0, 120])
 
@@ -107,7 +119,7 @@ def main():
         text = font.render(f'ball_dx:{round(ball.dx,2)}, ball_dy:{round(ball.dy,2)}, robot_dx:{round(robot.dx,2)}, robot_dy:{round(robot.dy,2)}', True, blue, white)
         textRect = text.get_rect().center = (0 , display_width//2 )
         display.blit(text, textRect)
-        # drawLine(display, ball, robot)
+        drawLine(display, ball, robot)
         pygame.display.update()
 
         # from datetime import datetime
