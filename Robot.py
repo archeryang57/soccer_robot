@@ -57,19 +57,7 @@ class Robot(pygame.sprite.Sprite):
 
         for ball in self.ball_list:
             if pygame.sprite.collide_mask(self, ball):
-                if ball.rect.x > self.rect.x:
-                    ball.rect.x = self.rect.x + self.rect.width
-                    ball.x_dir = 1.0
-                else:
-                    ball.rect.x = self.rect.x - ball.rect.width
-                    ball.x_dir = -1.0
-                
-                init_x = self.dx * 2 if abs(self.dx) < 0.1 else self.dx
-                init_y = self.dy * 2 if abs(self.dy) < 0.1 else self.dy
-
-                ball.dx = init_x 
-                ball.dy = init_y
-                ball.move_step = self.move_step * 2
+                self.kick_ball(ball)
 
         self.move()
 
@@ -102,3 +90,11 @@ class Robot(pygame.sprite.Sprite):
         theta = np.arctan2(det, dot)
         theta = theta if theta>0 else 2*np.pi+theta
         return 180 - (theta*180/np.pi)
+
+    def kick_ball(self, ball):
+        init_x = self.dx * 2 if abs(self.dx) < 0.1 else self.dx
+        init_y = self.dy * 2 if abs(self.dy) < 0.1 else self.dy
+
+        ball.dx = init_x + random()/5
+        ball.dy = init_y + random()/5
+        ball.move_step = self.move_step * 2
