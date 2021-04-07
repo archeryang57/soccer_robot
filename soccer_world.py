@@ -107,13 +107,14 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit()
 
-        if pygame.sprite.collide_rect(door, ball):
-            ball.x = door.rect.width
-            ball.dx = - ball.dx
-            print("Score")
-
         display.fill(white)
         group.update()
+
+        if pygame.sprite.collide_rect(door, ball):
+            ball.x = door.rect.width
+            ball.dx = abs(ball.dx)
+            print("Score")
+
         group.draw(display)
     
         text = font.render(f'ball_dx:{round(ball.dx,2)}, ball_dy:{round(ball.dy,2)}, robot_dx:{round(robot.dx,2)}, robot_dy:{round(robot.dy,2)}', True, blue, white)

@@ -54,13 +54,10 @@ class Robot(pygame.sprite.Sprite):
         self.ball_list.append(ball)
 
     def update(self):
-
+        self.move()
         for ball in self.ball_list:
             if pygame.sprite.collide_mask(self, ball):
                 self.kick_ball(ball)
-
-        self.move()
-
 
     def move(self):
         ball = self.ball_list[0]
@@ -70,8 +67,9 @@ class Robot(pygame.sprite.Sprite):
         dy = y1 - y2
 
         deno = abs(dx) if abs(dx) > abs(dy) else abs(dy)
-        self.dx = dx / deno
-        self.dy = dy / deno
+        if deno != 0:
+            self.dx = dx / deno
+            self.dy = dy / deno
 
         next_x = self.rect.x + self.dx * self.move_step
         next_y = self.rect.y + self.dy * self.move_step
