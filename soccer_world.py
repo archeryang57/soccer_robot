@@ -7,9 +7,12 @@ from Ball import Ball
 from CarModel import CarModel
 from Door import Door
 
-speed = 30
+speed = 100
 friction = 0.1
 robot_step = 5
+
+screen_width = 800
+screen_height = 600
 
 
 def set_speed(scale_value):
@@ -27,20 +30,20 @@ def set_friction(scale_value):
 def config_window():
     window = tk.Tk()
     window.wm_title("arg settings")
-    window.minsize(width=400, height=300)
-    window.maxsize(width=400, height=300)
+    window.minsize(width=screen_width, height=screen_height)
+    window.maxsize(width=screen_width, height=screen_height)
     scale = tk.Scale(window, from_=0, to=120, command=set_speed,
-                     orient="horizontal", label='speed', length=300)
+                     orient="horizontal", label='speed', length=screen_height)
     scale.set(speed)
     scale.pack()
 
     scale2 = tk.Scale(window, from_=0, to=1, command=set_friction,
-                     orient="horizontal", label='friction', length=300, resolution=0.01)
+                     orient="horizontal", label='friction', length=screen_height, resolution=0.01)
     scale2.set(friction)
     scale2.pack()
 
     scale3 = tk.Scale(window, from_=1, to=20, command=robot_speed,
-                     orient="horizontal", label='robot speed', length=300, resolution=1)
+                     orient="horizontal", label='robot speed', length=screen_height, resolution=1)
     scale3.set(robot_step)
     scale3.pack()
 
@@ -55,8 +58,8 @@ def drawLine(disp, ball, robot):
                     end_pos=(robot.rect.x+robot.rect.width/2, robot.rect.y+robot.rect.height/2), color=[128,128,0])
     
 def main():
-    display_width = 500
-    display_height = 300
+    display_width = screen_width
+    display_height = screen_height
     white = (255, 255, 255)
     green = (0, 255, 0)
     blue = (0, 0, 128)

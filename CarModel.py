@@ -7,8 +7,8 @@ from random import random
 class CarModel(pygame.sprite.Sprite):
 
     # const 參數
-    # 最大角度
-    maxAngle = 15
+    # 最大轉向角度
+    maxSteeringAngle = pi/4
     # 最大速度
     maxSpeed = 30
     # 加速度
@@ -18,13 +18,22 @@ class CarModel(pygame.sprite.Sprite):
     # 煞車速率
     brakerate = 0
 
+    theta = 0.5
+    delta = 5
+    beta = 5
+    L = 2
+    lr = 1.2
+    w_max = 1.22
+        
+    sample_time = 1
+
     # 油門 0 ~ 1 
     throttle = 0.0
     # 檔位, 0:空檔 1:前進 -1:後退
     gearshift = 0
     # 加速計算
     # speed = speed + ( maxSpeed * throttle * gearshift *(accelerate/maxSpeed) - (maxBrakeSpeed*brakerate)
-    # speed = 30.0 if speed > 30.0 else speed
+    # speed = maxSpeed if speed > maxSpeed else speed
     # speed = 0.0 if speed < 0.0 else speed
 
     # 狀態
@@ -36,10 +45,13 @@ class CarModel(pygame.sprite.Sprite):
     # 車頭方向(角度)
     heading = 0
     # 車輪角度
-    wheel_angel = 0
+    steering_angel = 0
+    # 圓心
+    xc = 300
+    yc = 200
 
-    def set_wheel_angle(self, angle):
-        self.wheel_angel = angle
+    def set_steering_angle(self, angle):
+        self.steering_angel = angle
 
     def set_gearshift(self, shift):
         self.gearshift = shift
@@ -70,22 +82,22 @@ class CarModel(pygame.sprite.Sprite):
         self.ball_list = []
         self.dx = 0.0
         self.dy = 0.0
-      
-    def move_up(self):
-        if self.rect.y - self.speed >= 0:
-            self.rect.y -= self.speed
-            
-    def move_down(self):
-        if self.rect.y + self.rect.height + self.speed <= self.display_height:
-            self.rect.y += self.speed
 
-    def move_left(self):
-        if self.rect.x - self.speed >= 0:
-            self.rect.x -= self.speed
-            
-    def move_right(self):
-        if self.rect.x + self.rect.width + self.speed <= self.display_width:
-            self.rect.x += self.speed
+	def set_car(self, x, y, orientation, steering_angle):
+
+		# if x >= self.display_width or x < 0:
+		# 	raise ValueError('X coordinate out of bound')
+		# if y >= self.display_height or y < 0:
+		# 	raise ValueError('Y coordinate out of bound')
+		# if orientation >= 2*pi or orientation < 0:
+		# 	raise ValueError('Orientation must be in [0..2pi]')
+		# if abs(steering_angle) > max_steering_angle:
+		#     raise ValueError('Exceeding max steering angle')
+
+		self.rect.x = x
+		self.rect.y = y
+		self.orientation = orientation
+		self.steering_angle = steering_angle
 
     def set_linear_x(self, linear_x):
         self.linear_x = linear_x
@@ -103,10 +115,21 @@ class CarModel(pygame.sprite.Sprite):
         self.ball_list.append(ball)
 
     def update(self):
-        self.move()
+        # self.move()
+        self.step(np.pi, self.speed)
         for ball in self.ball_list:
             if pygame.sprite.collide_mask(self, ball):
                 self.kick_ball(ball)
+
+    def step(self, v, w):
+        self.xc=self.xc+self.sample_time*(v*np.cos(self.theta+self.beta))
+        self.yc=self.yc+self.sample_time*(v*np.sin(self.theta+self.beta))
+        self.theta=self.theta+self.sample_time*((v*np.cos(self.beta)*np.tan(self.delta))/self.L)
+        self.delta=self.delta+self.sample_time*(w)
+        self.beta=np.arctan(self.lr*np.tan(self.delta)/self.L)
+        
+        self.rect.x = self.xc
+        self.rect.y = self.yc
 
     def move(self):
         ball = self.ball_list[0]
