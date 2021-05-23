@@ -5,11 +5,12 @@ import math
 import tkinter as tk
 from Ball import Ball
 from CarModel import CarModel
+# from CarModelOrig import CarModel
 from Door import Door
 
-speed = 100
+speed = 30
 friction = 0.1
-robot_step = 5
+robot_step = 1
 
 screen_width = 800
 screen_height = 600
@@ -74,7 +75,7 @@ def main():
     ball.friction = friction
     ball2.friction = friction
 
-    car = CarModel([0, 128, 255], [40, 40])
+    car = CarModel([0, 128, 255], [500, 500])
     car.add_ball(ball)
     car.add_ball(ball2)
     car.speed = robot_step
@@ -88,6 +89,8 @@ def main():
     group.add(door)
 
     font = pygame.font.Font('freesansbold.ttf', 12)
+
+    pause = False
     while True:
         clock.tick(speed)
 
@@ -96,16 +99,20 @@ def main():
 
         for event in events:
             if event.type == pygame.KEYUP:
-                # if event.key == pygame.K_w or event.key == pygame.K_UP:
-                #     robot.move_up()
-                # if event.key == pygame.K_s or event.key == pygame.K_DOWN:
-                #     robot.move_down()
-                # if event.key == pygame.K_LEFT:
-                #     robot.move_left()
-                # if event.key == pygame.K_RIGHT:
-                #     robot.move_right()
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
+                if event.key == pygame.K_SPACE:
+                    pygame.time.delay(5000)
+                if event.key == pygame.K_UP:
+                    car.increase_speed()
+                if event.key == pygame.K_DOWN:
+                    car.decrease_speed()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    car.turn_left()
+                if event.key == pygame.K_RIGHT:
+                    car.turn_right()
 
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -120,10 +127,11 @@ def main():
 
         group.draw(display)
     
-        text = font.render(f'ball_dx:{round(ball.dx,2)}, ball_dy:{round(ball.dy,2)}, robot_dx:{round(car.dx,2)}, robot_dy:{round(car.dy,2)}', True, blue, white)
+        text = font.render(f'robot_x:{round(car.rect.x,2)}, robot_y:{round(car.rect.y,2)}, robot speed:{round(car.speed,2)}', 
+            True, blue, white)
         textRect = text.get_rect().center = (0 , display_width//2 )
         display.blit(text, textRect)
-        drawLine(display, ball, car)
+        # drawLine(display, ball, car)
         pygame.display.update()
 
         # from datetime import datetime
