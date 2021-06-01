@@ -1,4 +1,5 @@
 
+from CarController import CarController
 import pygame
 import sys
 import math
@@ -11,10 +12,14 @@ from Door import Door
 speed = 30
 friction = 0.1
 robot_step = 1
+throttle = 0.8
 
 screen_width = 800
 screen_height = 600
 
+def set_throttle(throttle_value):
+    global throttle
+    throttle = float(throttle_value)
 
 def set_speed(scale_value):
     global speed
@@ -44,9 +49,14 @@ def config_window():
     scale2.pack()
 
     scale3 = tk.Scale(window, from_=1, to=20, command=robot_speed,
-                     orient="horizontal", label='robot speed', length=screen_height, resolution=1)
+                     orient="horizontal", label='robot initial speed', length=screen_height, resolution=1)
     scale3.set(robot_step)
     scale3.pack()
+
+    scale4 = tk.Scale(window, from_=0, to=1, command=set_throttle,
+                     orient="horizontal", label='car trottle', length=screen_height, resolution=0.1)
+    scale4.set(throttle)
+    scale4.pack()
 
 
     button = tk.Button(window, text="Start Game", height=5, width=20, command=lambda: main())
@@ -70,15 +80,16 @@ def main():
     display = pygame.display.set_mode((display_width, display_height))
     pygame.display.set_caption("Robot_World!")
 
-    ball = Ball([0, 255, 0], [100, 100])
+    ball = Ball([0, 255, 0], [400, 400])
     ball2 = Ball([0, 128, 0], [100, 200])
     ball.friction = friction
     ball2.friction = friction
 
-    car = CarModel([0, 128, 255], [500, 500])
+    car = CarModel([0, 128, 255], [200, 200])
     car.add_ball(ball)
     car.add_ball(ball2)
     car.speed = robot_step
+    car.set_throttle(throttle)
 
     door = Door([255, 0, 0], [0, 120])
 
@@ -88,6 +99,8 @@ def main():
     group.add(ball2)
     group.add(door)
 
+    controller = CarController(car, ball, door, screen_width, screen_height)
+
     font = pygame.font.Font('freesansbold.ttf', 12)
 
     pause = False
@@ -96,6 +109,8 @@ def main():
 
         pygame.key.set_repeat(10)
         events = pygame.event.get()
+        
+        controller.update()
 
         for event in events:
             if event.type == pygame.KEYUP:
@@ -129,7 +144,7 @@ def main():
     
         text = font.render(f'robot_x:{round(car.rect.x,2)}, robot_y:{round(car.rect.y,2)}, robot speed:{round(car.speed,2)}', 
             True, blue, white)
-        textRect = text.get_rect().center = (0 , display_width//2 )
+        textRect = text.get_rect().topleft = (10 , display_height-20 )
         display.blit(text, textRect)
         # drawLine(display, ball, car)
         pygame.display.update()

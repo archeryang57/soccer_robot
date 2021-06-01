@@ -6,7 +6,6 @@
 import pygame
 import sys
 
-
 class Ball(pygame.sprite.Sprite):
     def __init__(self, color, initial_position):
         pygame.sprite.Sprite.__init__(self)
@@ -23,24 +22,31 @@ class Ball(pygame.sprite.Sprite):
                            (self.radius, self.radius), self.radius)
         self.rect = self.image.get_rect()
         self.rect.topleft = initial_position
+        self.x, self.y = self.rect.center
         self.display_width, self.display_height = pygame.display.get_surface().get_size()
 
     def update(self):
-        self.rect.x += self.dx * self.move_step # * self.x_dir
-        self.rect.y += self.dy * self.move_step # * self.y_dir
+        self.x += self.dx * self.move_step # * self.x_dir
+        self.y += self.dy * self.move_step # * self.y_dir
+        self.rect.x = int(self.x)
+        self.rect.y = int(self.y)
 
         if self.rect.x <= 0:
             self.rect.x = 0
+            self.x = float(self.rect.centerx)
             self.dx = -self.dx
         elif self.rect.x >= self.display_width - self.rect.width:
             self.rect.x = self.display_width - self.rect.width
+            self.x = float(self.rect.x)
             self.dx = -self.dx
 
         if self.rect.y <= 0:
             self.rect.y = 0
+            self.y = float(self.rect.centery)
             self.dy = -self.dy
         elif self.rect.y + self.rect.height >= self.display_height:
             self.rect.y = self.display_height - self.rect.height
+            self.y = float(self.rect.y)
             self.dy = -self.dy
 
         self.move_step = self.move_step - self.friction if self.move_step - self.friction > 0 else 0

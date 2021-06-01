@@ -1,27 +1,26 @@
 import pygame
-
 import numpy as np
-
 from Ball import Ball
-
 import random
-
 
 class CarModel(pygame.sprite.Sprite):
 
-
-    # const 參數
+# const 參數
     # 最大轉向角度
-    max_steering_angle = np.pi/4
+    max_steering_angle = np.pi/5.0
 
     # 最大速度
     maxSpeed = 10.0
 
-    # 加速度
-    accelerate = 0.05
-
     # 最大煞車速度
     maxBrakeSpeed = 5.0
+
+    # 車輛長度
+    car_length = 60.0
+
+# 變數: 速度變化
+    # 加速度
+    accelerate = 0.05
 
     # 煞車速率
     brakerate = 0.0
@@ -32,33 +31,35 @@ class CarModel(pygame.sprite.Sprite):
     # 檔位, 0:空檔 1:前進 -1:後退
     gearshift = 1.0
 
-    # 狀態
-    # 車輛長度
-    car_length = 60.0
+    # 速度 ( 速度' = 速度 + (油門*加速度) - (最大煞車速度 * 煞車速率)    #暫時不算檔位
+    speed = 0.0
 
+# 變數: 位置及方向
     # 下一步的x,y差異值(斜率分量)
     dx = 0.0 
     dy = 0.0
-
-    # 速度 ( 速度' = 速度 + (油門*加速度) - (最大煞車速度 * 煞車速率)    #暫時不算檔位
-    speed = 0.0
 
     # 車頭方向(角度)
     orientation = 2.0 * np.pi
 
     # 車輪角度
-    steering_angle = np.pi / 8
+    steering_angle = np.pi / 8.0
 
+    # 車輛位置(浮點數, 原本用centerX(整數), 會造成誤差, 計算新位置時須另補償0.5)
+    x = 0.0
+    y = 0.0
 
     def __init__(self, color, initial_position):
         pygame.sprite.Sprite.__init__(self)
         self.orig_image = pygame.image.load('car.png').convert()
         self.image = self.orig_image
-        self.car_length = self.image.get_height()
+        self.car_length = self.image.get_height()*1.0
         self.image.set_colorkey((0, 0, 0))
 
         self.rect = self.image.get_rect()
         self.rect.topleft = initial_position
+        self.x = self.rect.centerx
+        self.y = self.rect.centery
 
         self.dx = 0.0
         self.dy = 0.0
@@ -74,6 +75,8 @@ class CarModel(pygame.sprite.Sprite):
 
         self.image = self.setCarImage()
 
+        self.x = x
+        self.y = y
         self.rect.centerx = x
         self.rect.centery = y
         self.dx = 0.0
@@ -104,9 +107,9 @@ class CarModel(pygame.sprite.Sprite):
         # 取得下一個位置及車輛角度
         _x, _y, _theta = self.next_step()
 
-        # 計算dx,dy 車子與球的斜率分量(計算球的移動速度用)
-        dx = _x - self.rect.centerx
-        dy = _y - self.rect.centery
+        # 計算dx,dy 車子移動斜率分量(計算撞到球後, 球的移動方向用)
+        dx = _x - self.x
+        dy = _y - self.y
 
         deno = abs(dx) if abs(dx) > abs(dy) else abs(dy)
         if deno != 0:
@@ -123,11 +126,14 @@ class CarModel(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.centerx = _x
         self.rect.centery = _y
+        self.x = _x
+        self.y = _y
 
 
     def next_step(self):
         # 計算速度
         self.speed = self.calculate_speed() # self.maxSpeed * self.throttle
+        
         theta = self.orientation # 車輛目前方向
         alpha = self.steering_angle # 車輛轉向
         dist = self.speed # 移動距離
@@ -135,32 +141,30 @@ class CarModel(pygame.sprite.Sprite):
 
         # 計算移動後與原點的夾角
         beta = (dist/length)*np.tan(alpha)
-        # beta = np.arctan(1.2*np.tan(theta)/self.car_length)
 
-        cx = cy = radius = 0.0
-        if beta > 0.001 or beta < -0.001:
-            # 算出轉彎半徑
-            radius = dist/beta 
+        # 計算新的位置及車輛角度
+        if abs(beta) > 0.00001:
+            # # 新位置第一種算法
+            # # 算出轉彎半徑
+            # radius = dist/beta 
 
-            # 計算圓心及新的位置
-            # cx = self.rect.centerx - radius * np.sin(theta)
-            # cy = self.rect.centery - radius * np.cos(theta)
-            # _x = cx + radius * np.sin(theta + beta) + 0.5
-            # _y = cy + radius * np.cos(theta + beta) + 0.5
+            # # 計算圓心及新的位置
+            # cx = self.x - radius * np.sin(theta)
+            # cy = self.y - radius * np.cos(theta)
+            # _x = cx + radius * np.sin(theta + beta) #  若用centerx, 須另 + 0.5 補償
+            # _y = cy + radius * np.cos(theta + beta) #  + 0.5
 
-            # 新位置另一種算法, 用dist做斜邊來運算,不必計算圓心位置
-            # sin(theta) = (y-y') / dist   ;   cos(theta) = (x'-x) / dist
-            _x = self.rect.centerx + dist * np.cos(theta) + 0.5
-            _y = self.rect.centery - dist * np.sin(theta) + 0.5
-
-            _theta = (theta + beta)%(2*np.pi)  # 移動後車輛的角度
-
+            _theta = (theta + beta)%(2.0*np.pi)  # 移動後車輛的角度
         else:
-            _x = self.rect.centerx + dist * np.cos(theta)
-            _y = self.rect.centery + dist * np.sin(theta)
-            _theta = self.orientation # 角度不變
-        
-        # print(f"beta={beta}  R={radius}, cx={cx}, cy={cy}, cos(theta)={np.cos(theta)}")
+
+            _theta = theta # 角度不變
+
+        # 新位置另一種算法, 用dist做斜邊來運算,不必計算圓心位置
+        # cos(theta) = (x'-x) / dist   ;   sin(theta) = (y-y') / dist
+        _x = self.x + dist * np.cos(theta) # 若用centerx, 須另 + 0.5 補償
+        _y = self.y - dist * np.sin(theta)# + 0.5
+
+        # print(f"beta={beta}  theta={theta}  angle={self.steering_angle}")
 
         return (_x, _y, _theta)
 
@@ -174,6 +178,8 @@ class CarModel(pygame.sprite.Sprite):
         for (_x,_y) in self.point_list:
             pygame.draw.line(pygame.display.get_surface(),(0, 0, 0),(x, y),(_x,_y), 1)
             (x,y) = (_x, _y)
+
+        # pygame.draw.line(pygame.display.get_surface(),(0,0,255),(self.x, self.y),(self.x+self.dx*100, self.y+self.dy*100))
 
 
     def increase_speed(self, step=0.1):
@@ -194,14 +200,14 @@ class CarModel(pygame.sprite.Sprite):
 
 
     def turn_left(self, step=np.pi/32):
-        self.set_steeringAngle(self.steering_angle + step )
+        self.set_steering_angle(self.steering_angle + step )
 
 
     def turn_right(self, step=np.pi/32):
-        self.set_steeringAngle(self.steering_angle - step )
+        self.set_steering_angle(self.steering_angle - step )
 
 
-    def set_steeringAngle(self, steeringAngle ):
+    def set_steering_angle(self, steeringAngle ):
         if steeringAngle > self.max_steering_angle :
             self.steering_angle = self.max_steering_angle
         elif steeringAngle < -self.max_steering_angle:
@@ -215,10 +221,10 @@ class CarModel(pygame.sprite.Sprite):
 
 
     def kick_ball(self, ball):
-        init_x = self.dx * 2 if abs(self.dx) < 0.1 else self.dx
-        init_y = self.dy * 2 if abs(self.dy) < 0.1 else self.dy
+        init_x = self.dx * 2.0 if abs(self.dx) < 0.1 else self.dx
+        init_y = self.dy * 2.0 if abs(self.dy) < 0.1 else self.dy
 
         ball.dx = init_x + random.random()/5
         ball.dy = init_y + random.random()/5
-        ball.move_step = self.speed * 2
+        ball.move_step = self.speed * 2.0
 
