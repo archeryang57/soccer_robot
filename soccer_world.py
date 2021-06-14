@@ -80,14 +80,14 @@ def main():
     display = pygame.display.set_mode((display_width, display_height))
     pygame.display.set_caption("Robot_World!")
 
-    ball = Ball([0, 255, 0], [400, 400])
-    ball2 = Ball([0, 128, 0], [100, 200])
+    ball = Ball([0, 255, 0], [400, 300])
+    # ball2 = Ball([0, 128, 0], [100, 200])
     ball.friction = friction
-    ball2.friction = friction
+    # ball2.friction = friction
 
     car = CarModel([0, 128, 255], [200, 200])
     car.add_ball(ball)
-    car.add_ball(ball2)
+    # car.add_ball(ball2)
     car.speed = robot_step
     car.set_throttle(throttle)
 
@@ -96,7 +96,7 @@ def main():
     group = pygame.sprite.Group()
     group.add(car)
     group.add(ball)
-    group.add(ball2)
+    # group.add(ball2)
     group.add(door)
 
     controller = CarController(car, ball, door, screen_width, screen_height)

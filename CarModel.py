@@ -2,6 +2,7 @@ import pygame
 import numpy as np
 from Ball import Ball
 import random
+import copy
 
 class CarModel(pygame.sprite.Sprite):
 
@@ -20,7 +21,7 @@ class CarModel(pygame.sprite.Sprite):
 
 # 變數: 速度變化
     # 加速度
-    accelerate = 0.05
+    accelerate = 0.1
 
     # 煞車速率
     brakerate = 0.0
@@ -89,10 +90,10 @@ class CarModel(pygame.sprite.Sprite):
         # 暫時不算檔位
         speed = self.speed + (self.throttle * self.accelerate) - (self.maxBrakeSpeed * self.brakerate)
 
-        if speed > self.maxSpeed * self.throttle:
+        if abs(speed) > abs(self.maxSpeed * self.throttle):
             speed = self.maxSpeed * self.throttle
-        elif speed < 0.0:
-            speed = 0.0
+        # elif speed < 0.0:
+        #     speed = 0.0
         return speed
 
 
@@ -142,24 +143,13 @@ class CarModel(pygame.sprite.Sprite):
         # 計算移動後與原點的夾角
         beta = (dist/length)*np.tan(alpha)
 
-        # 計算新的位置及車輛角度
+        # 計算新的車輛角度
         if abs(beta) > 0.00001:
-            # # 新位置第一種算法
-            # # 算出轉彎半徑
-            # radius = dist/beta 
-
-            # # 計算圓心及新的位置
-            # cx = self.x - radius * np.sin(theta)
-            # cy = self.y - radius * np.cos(theta)
-            # _x = cx + radius * np.sin(theta + beta) #  若用centerx, 須另 + 0.5 補償
-            # _y = cy + radius * np.cos(theta + beta) #  + 0.5
-
             _theta = (theta + beta)%(2.0*np.pi)  # 移動後車輛的角度
         else:
-
             _theta = theta # 角度不變
 
-        # 新位置另一種算法, 用dist做斜邊來運算,不必計算圓心位置
+        # 計算新位置, 用dist做斜邊來運算,不必計算圓心位置
         # cos(theta) = (x'-x) / dist   ;   sin(theta) = (y-y') / dist
         _x = self.x + dist * np.cos(theta) # 若用centerx, 須另 + 0.5 補償
         _y = self.y - dist * np.sin(theta)# + 0.5
@@ -193,8 +183,8 @@ class CarModel(pygame.sprite.Sprite):
     def set_throttle(self, throttle):
         if throttle > 1.0:
             self.throttle = 1.0
-        elif throttle < 0.0:
-            self.throttle = 0.0
+        elif throttle < -1.0:
+            self.throttle = -1.0
         else:
             self.throttle = throttle
 
@@ -228,3 +218,11 @@ class CarModel(pygame.sprite.Sprite):
         ball.dy = init_y + random.random()/5
         ball.move_step = self.speed * 2.0
 
+    def copy(self):
+        copyobj = CarModel([0, 128, 255], [200, 200])
+        for name, attr in self.__dict__.items():
+            if hasattr(attr, 'copy') and callable(getattr(attr, 'copy')):
+                copyobj.__dict__[name] = attr.copy()
+            else:
+                copyobj.__dict__[name] = copy.deepcopy(attr)
+        return copyobj
