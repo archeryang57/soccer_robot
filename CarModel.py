@@ -3,6 +3,7 @@ import numpy as np
 from Ball import Ball
 import random
 import copy
+from collections import deque
 
 class CarModel(pygame.sprite.Sprite):
 
@@ -21,7 +22,7 @@ class CarModel(pygame.sprite.Sprite):
 
 # 變數: 速度變化
     # 加速度
-    accelerate = 0.1
+    accelerate = 0.2
 
     # 煞車速率
     brakerate = 0.0
@@ -67,7 +68,8 @@ class CarModel(pygame.sprite.Sprite):
 
         self.display_width, self.display_height = pygame.display.get_surface().get_size()
         self.ball_list = []
-        self.point_list = []
+        # 路徑點改用 deque 只保留最後500點
+        self.point_list = deque(maxlen=500)
 
 
     def set_car(self, x, y, orientation, steering_angle):
@@ -86,12 +88,18 @@ class CarModel(pygame.sprite.Sprite):
 
 
     def calculate_speed(self):
+        # 煞車速度
+        if self.speed > 0:
+            brakeSpeed = self.maxBrakeSpeed * self.brakerate
+        else:
+            brakeSpeed = -(self.maxBrakeSpeed * self.brakerate)
+        
+        # 速度 = 原速度 + 油門*加速度 - 煞車速度
+        speed = self.speed + (self.throttle * self.accelerate) - brakeSpeed
 
-        # 暫時不算檔位
-        speed = self.speed + (self.throttle * self.accelerate) - (self.maxBrakeSpeed * self.brakerate)
-
+        # 限制速度上限
         if abs(speed) > abs(self.maxSpeed * self.throttle):
-            speed = self.maxSpeed * self.throttle
+                speed = self.maxSpeed * self.throttle
         # elif speed < 0.0:
         #     speed = 0.0
         return speed
@@ -105,6 +113,9 @@ class CarModel(pygame.sprite.Sprite):
 
 
     def move(self):
+        # 計算速度
+        self.speed = self.calculate_speed() # self.maxSpeed * self.throttle
+ 
         # 取得下一個位置及車輛角度
         _x, _y, _theta = self.next_step()
 
@@ -132,9 +143,7 @@ class CarModel(pygame.sprite.Sprite):
 
 
     def next_step(self):
-        # 計算速度
-        self.speed = self.calculate_speed() # self.maxSpeed * self.throttle
-        
+       
         theta = self.orientation # 車輛目前方向
         alpha = self.steering_angle # 車輛轉向
         dist = self.speed # 移動距離
@@ -216,7 +225,8 @@ class CarModel(pygame.sprite.Sprite):
 
         ball.dx = init_x + random.random()/5
         ball.dy = init_y + random.random()/5
-        ball.move_step = self.speed * 2.0
+        # ball.move_step = self.speed * 2.0 if self.speed > 0 else 0
+        ball.move_step = self.speed * 2.0 # if self.speed > 0 else ball.move_step
 
     def copy(self):
         copyobj = CarModel([0, 128, 255], [200, 200])
@@ -226,3 +236,15 @@ class CarModel(pygame.sprite.Sprite):
             else:
                 copyobj.__dict__[name] = copy.deepcopy(attr)
         return copyobj
+    
+    def save_status(self):
+        self.temp_x = self.x
+        self.temp_y = self.y
+        self.temp_steering_angle = self.steering_angle
+        self.temp_speed = self.speed
+
+    def load_status(self):
+        self.x = self.temp_x
+        self.y = self.temp_y
+        self.steering_angle = self.temp_steering_angle
+        self.speed = self.temp_speed

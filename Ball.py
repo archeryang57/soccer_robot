@@ -32,24 +32,25 @@ class Ball(pygame.sprite.Sprite):
         self.rect.y = int(self.y)
 
         if self.rect.x <= 0:
-            self.rect.x = 10
+            self.rect.x = 0
             self.x = float(self.rect.centerx)
             self.dx = -self.dx
         elif self.rect.x >= self.display_width - self.rect.width:
-            self.rect.x = self.display_width - self.rect.width - 10
+            self.rect.x = self.display_width - self.rect.width
             self.x = float(self.rect.x)
             self.dx = -self.dx
 
         if self.rect.y <= 0:
-            self.rect.y = 10
+            self.rect.y = 0
             self.y = float(self.rect.centery)
             self.dy = -self.dy
         elif self.rect.y + self.rect.height >= self.display_height:
-            self.rect.y = self.display_height - self.rect.height - 10
+            self.rect.y = self.display_height - self.rect.height
             self.y = float(self.rect.y)
             self.dy = -self.dy
 
-        self.move_step = self.move_step - self.friction if self.move_step - self.friction > 0 else 0
+        step = self.move_step - self.friction
+        self.move_step = step if step > 0 else 0
 
 
 

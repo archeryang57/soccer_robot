@@ -99,7 +99,7 @@ def main():
     # group.add(ball2)
     group.add(door)
 
-    controller = CarController(car, ball, door, screen_width, screen_height)
+    controller = CarController(car, ball, door)
 
     font = pygame.font.Font('freesansbold.ttf', 12)
 
