@@ -225,8 +225,7 @@ class CarModel(pygame.sprite.Sprite):
 
         ball.dx = init_x + random.random()/5
         ball.dy = init_y + random.random()/5
-        # ball.move_step = self.speed * 2.0 if self.speed > 0 else 0
-        ball.move_step = self.speed * 2.0 # if self.speed > 0 else ball.move_step
+        ball.move_step = self.speed * 2.0
 
     def copy(self):
         copyobj = CarModel([0, 128, 255], [200, 200])
