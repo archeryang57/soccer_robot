@@ -68,6 +68,7 @@ class CarModel(pygame.sprite.Sprite):
 
         self.display_width, self.display_height = pygame.display.get_surface().get_size()
         self.ball_list = []
+        self.collision = [0,0,0,0,0,0,0,0,0,0]
         # 路徑點改用 deque 只保留最後500點
         self.point_list = deque(maxlen=500)
 
@@ -109,7 +110,37 @@ class CarModel(pygame.sprite.Sprite):
         self.move()
         for ball in self.ball_list:
             if pygame.sprite.collide_mask(self, ball):
+                self.check_collision(ball)
                 self.kick_ball(ball)
+
+    def check_collision(self, ball):
+        self.collision[0] = ball.rect.collidepoint(self.rect.topleft)
+        self.collision[1] = ball.rect.collidepoint(self.rect.topright)
+        self.collision[2] = ball.rect.collidepoint(self.rect.bottomleft)
+        self.collision[3] = ball.rect.collidepoint(self.rect.bottomright)
+
+        self.collision[4] = ball.rect.collidepoint(self.rect.midleft)
+        self.collision[5] = ball.rect.collidepoint(self.rect.midright)
+        self.collision[6] = ball.rect.collidepoint(self.rect.midtop)
+        self.collision[7] = ball.rect.collidepoint(self.rect.midbottom)
+        
+        self.print_collision_info()
+
+    def print_collision_info(self):
+        if self.collision[0] or self.collision[2] or self.collision[4]:
+            print ("collision left")
+
+        if self.collision[1] or self.collision[3] or self.collision[5]:
+            print ("collision right")
+
+        if self.collision[0] or self.collision[1] or self.collision[6]:
+            print ("collision top")
+
+        if self.collision[2] or self.collision[3] or self.collision[7]:
+            print ("collision bottom")
+
+        if self.collision[8]:
+            print ("collision center")
 
 
     def move(self):

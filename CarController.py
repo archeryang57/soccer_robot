@@ -2,6 +2,13 @@ import numpy as np
 from CarModel import CarModel
 from Ball import Ball
 from Door import Door
+from enum import IntEnum
+ 
+class BackPhase(IntEnum):  # 倒車階段 0:正常往前, 1:倒車減速階段 2:倒車加速階段, 3:減速階段
+    NORMAL = 0
+    BACK_DEC = 1
+    BACK_ACC = 2
+    DEC = 3
 
 class CarController:
     def __init__(self, car: CarModel, ball: Ball, door: Door):
@@ -9,8 +16,11 @@ class CarController:
         self.ball = ball
         self.door = door
         self.back_dir = "back"  # 倒車方向
-        self.back_phase = 0  # 倒車階段 0: 正常往前, 1:加速階段, 2:減速階段
+        self.back_phase = BackPhase.NORMAL
+        self.BACK_STEPS = 20 # 每次倒車總步數
         self.back_step = 0   # 倒車步數暫存
+        self.car_throttle = car.throttle
+        self.back_throttle = -car.throttle
 
     def update(self):
         # 計算與球的角度
@@ -26,7 +36,7 @@ class CarController:
 
         # 計算xx步內是否會撞牆(在減速階段不計算)
         hit_step = 999
-        if self.back_phase < 2:
+        if self.back_phase < BackPhase.DEC:
             (hit_step, hit_dir) = self.get_step_will_hit_wall(3)
 
         # 若會撞牆, 往反方向後退xx步, 再往前開.(也考慮到退車會撞牆的情形)
@@ -43,15 +53,16 @@ class CarController:
             # 踩剎車
             self.car.brakerate = 0.5
             # 倒退xx步
-            self.back_step = 15
+            self.back_step = self.BACK_STEPS
             # 倒退減速階段
-            self.back_phase = 2
+            self.back_phase = BackPhase.BACK_DEC
             # 設定車輛前後方向(與牆的反方向)
             if self.car.speed >= 0:
                 self.back_dir = "back"
             else:
                 self.back_dir = "ahead"
 
+        # 若在倒車階段
         if self.back_step > 0:
             self.back_step -= 1
             # 方向盤固定往反方向打(之前會先變更steering angel, 這裡改回來)
@@ -62,20 +73,24 @@ class CarController:
                     self.car.brakerate = 0.5 # 踩剎車 
                 else:                   # 已經往後倒車了
                     self.car.brakerate = 0.0 # 鬆剎車
-                    self.back_phase = 1  # 開始加速階段
+                    self.back_phase = BackPhase.BACK_ACC  # 開始加速階段
             else:                       
                 if self.car.speed < 0:
                     self.car.brakerate = 0.5
                 else:
                     self.car.brakerate = 0.0
-                    self.back_phase = 1
-        else:
-            # 向前開
-            self.car.throttle = abs(self.car.throttle)
-            # 鬆剎車
-            self.car.brakerate = 0.0
-            # 倒車模式關閉
-            self.back_phase = 0
+                    self.back_phase = BackPhase.BACK_ACC
+        else:  # 應向前開
+            # 若還在倒車加速階段
+            if self.back_phase == BackPhase.BACK_ACC:
+                if self.car.speed != 0: # 速度先降下來
+                    self.car.throttle = 0.0   # 鬆油門
+                    self.car.brakerate = 0.5  # 踩剎車
+                else: # 速度降到0後
+                    self.car.throttle = self.car_throttle  #回復向前開
+                    self.car.brakerate = 0.0  # 鬆剎車
+                    self.back_phase = BackPhase.NORMAL  # 倒車模式關閉
+
 
         # print(f"rad:{rad},    sterring_angle:{sterring_angle}")
 
