@@ -31,7 +31,7 @@ class CarModel(pygame.sprite.Sprite):
     throttle = 0.5
 
     # 檔位, 0:空檔 1:前進 -1:後退
-    gearshift = 2.0
+    gearshift = 1.0
 
     # 速度 ( 速度' = 速度 + (油門*加速度) - (最大煞車速度 * 煞車速率)    #暫時不算檔位
     speed = 0.0
