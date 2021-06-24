@@ -31,7 +31,7 @@ class CarModel(pygame.sprite.Sprite):
     throttle = 0.5
 
     # 檔位, 0:空檔 1:前進 -1:後退
-    gearshift = 1.0
+    gearshift = 2.0
 
     # 速度 ( 速度' = 速度 + (油門*加速度) - (最大煞車速度 * 煞車速率)    #暫時不算檔位
     speed = 0.0
@@ -90,17 +90,21 @@ class CarModel(pygame.sprite.Sprite):
 
     def calculate_speed(self):
         # 煞車速度
-        if self.speed > 0:
-            brakeSpeed = self.maxBrakeSpeed * self.brakerate
-        else:
-            brakeSpeed = -(self.maxBrakeSpeed * self.brakerate)
+        brakeSpeed = self.maxBrakeSpeed * self.brakerate
+        if self.gearshift < 0: # 倒車中
+            brakeSpeed = -brakeSpeed
         
         # 速度 = 原速度 + 油門*加速度 - 煞車速度
-        speed = self.speed + (self.throttle * self.accelerate) - brakeSpeed
+        speed = self.speed + (self.throttle * self.accelerate * self.gearshift) 
+        if self.gearshift > 0:
+            speed = 0 if speed - brakeSpeed < 0 else speed - brakeSpeed
+        else:
+            speed = 0 if speed - brakeSpeed > 0 else speed - brakeSpeed
 
         # 限制速度上限
-        if abs(speed) > abs(self.maxSpeed * self.throttle):
-                speed = self.maxSpeed * self.throttle
+        if self.throttle != 0:
+            if abs(speed) > abs(self.maxSpeed * self.throttle):
+                    speed = self.maxSpeed * self.throttle
         # elif speed < 0.0:
         #     speed = 0.0
         return speed
@@ -272,9 +276,11 @@ class CarModel(pygame.sprite.Sprite):
         self.temp_y = self.y
         self.temp_steering_angle = self.steering_angle
         self.temp_speed = self.speed
+        self.temp_gearshift = self.gearshift
 
     def load_status(self):
         self.x = self.temp_x
         self.y = self.temp_y
         self.steering_angle = self.temp_steering_angle
         self.speed = self.temp_speed
+        self.gearshift = self.temp_gearshift
