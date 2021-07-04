@@ -1,8 +1,8 @@
 
 from CarController import CarController
 import pygame
-import sys
 import math
+import numpy as np
 import tkinter as tk
 from Ball import Ball
 from CarModel import CarModel
@@ -80,7 +80,7 @@ def main():
     display = pygame.display.set_mode((display_width, display_height))
     pygame.display.set_caption("Robot_World!")
 
-    ball = Ball([0, 255, 0], [400, 300])
+    ball = Ball([0, 255, 0], [400, 280])
     # ball2 = Ball([0, 128, 0], [100, 200])
     ball.friction = friction
     # ball2.friction = friction
@@ -142,7 +142,8 @@ def main():
 
         group.draw(display)
     
-        text = font.render(f'robot_x:{round(car.rect.x,2)}, robot_y:{round(car.rect.y,2)}, robot speed:{round(car.speed,2)}', 
+        text = font.render(f'car orientation:{round(car.orientation,4)}, \
+car.degrees:{round(math.degrees(car.orientation),2)},  car speed:{round(car.speed,2)}', 
             True, blue, white)
         textRect = text.get_rect().topleft = (10 , display_height-20 )
         display.blit(text, textRect)

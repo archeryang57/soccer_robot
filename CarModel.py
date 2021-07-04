@@ -56,6 +56,7 @@ class CarModel(pygame.sprite.Sprite):
         self.orig_image = pygame.image.load('car.png').convert()
         self.image = self.orig_image
         self.car_length = self.image.get_height()*1.0
+        self.car_width = self.image.get_width()*1.0
         self.image.set_colorkey((0, 0, 0))
 
         self.rect = self.image.get_rect()
@@ -114,37 +115,37 @@ class CarModel(pygame.sprite.Sprite):
         self.move()
         for ball in self.ball_list:
             if pygame.sprite.collide_mask(self, ball):
-                self.check_collision(ball)
+                # self.check_collision(ball)
                 self.kick_ball(ball)
 
-    def check_collision(self, ball):
-        self.collision[0] = ball.rect.collidepoint(self.rect.topleft)
-        self.collision[1] = ball.rect.collidepoint(self.rect.topright)
-        self.collision[2] = ball.rect.collidepoint(self.rect.bottomleft)
-        self.collision[3] = ball.rect.collidepoint(self.rect.bottomright)
+    # def check_collision(self, ball):
+    #     self.collision[0] = ball.rect.collidepoint(self.rect.topleft)
+    #     self.collision[1] = ball.rect.collidepoint(self.rect.topright)
+    #     self.collision[2] = ball.rect.collidepoint(self.rect.bottomleft)
+    #     self.collision[3] = ball.rect.collidepoint(self.rect.bottomright)
 
-        self.collision[4] = ball.rect.collidepoint(self.rect.midleft)
-        self.collision[5] = ball.rect.collidepoint(self.rect.midright)
-        self.collision[6] = ball.rect.collidepoint(self.rect.midtop)
-        self.collision[7] = ball.rect.collidepoint(self.rect.midbottom)
+    #     self.collision[4] = ball.rect.collidepoint(self.rect.midleft)
+    #     self.collision[5] = ball.rect.collidepoint(self.rect.midright)
+    #     self.collision[6] = ball.rect.collidepoint(self.rect.midtop)
+    #     self.collision[7] = ball.rect.collidepoint(self.rect.midbottom)
         
-        self.print_collision_info()
+    #     self.print_collision_info()
 
-    def print_collision_info(self):
-        if self.collision[0] or self.collision[2] or self.collision[4]:
-            print ("collision left")
+    # def print_collision_info(self):
+    #     if self.collision[0] or self.collision[2] or self.collision[4]:
+    #         print ("collision left")
 
-        if self.collision[1] or self.collision[3] or self.collision[5]:
-            print ("collision right")
+    #     if self.collision[1] or self.collision[3] or self.collision[5]:
+    #         print ("collision right")
 
-        if self.collision[0] or self.collision[1] or self.collision[6]:
-            print ("collision top")
+    #     if self.collision[0] or self.collision[1] or self.collision[6]:
+    #         print ("collision top")
 
-        if self.collision[2] or self.collision[3] or self.collision[7]:
-            print ("collision bottom")
+    #     if self.collision[2] or self.collision[3] or self.collision[7]:
+    #         print ("collision bottom")
 
-        if self.collision[8]:
-            print ("collision center")
+    #     if self.collision[8]:
+    #         print ("collision center")
 
 
     def move(self):
@@ -277,6 +278,8 @@ class CarModel(pygame.sprite.Sprite):
         self.temp_steering_angle = self.steering_angle
         self.temp_speed = self.speed
         self.temp_gearshift = self.gearshift
+        self.temp_orientation = self.orientation
+        self.temp_rect = self.rect
 
     def load_status(self):
         self.x = self.temp_x
@@ -284,3 +287,5 @@ class CarModel(pygame.sprite.Sprite):
         self.steering_angle = self.temp_steering_angle
         self.speed = self.temp_speed
         self.gearshift = self.temp_gearshift
+        self.orientation = self.temp_orientation
+        self.rect = self.temp_rect
