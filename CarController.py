@@ -65,7 +65,7 @@ class CarController:
         hit_step = 999
         # 計算(現在速度+1)步內是否會撞牆(在減速階段不計算)
         if self.drive_state != DriveState.DEC and self.drive_state != DriveState.BACK_DEC:
-            (hit_step, self.hit_dir) = self.get_step_will_hit_wall( abs(int(self.car.speed))+2)
+            (hit_step, self.hit_dir) = self.get_step_will_hit_wall( abs(int(self.car.speed))+1)
 
         # 若會撞牆, 往反方向後退xx步, 再往前開.(也考慮到退車會撞牆的情形)
         if hit_step < 999:
@@ -76,7 +76,7 @@ class CarController:
             self.stop_car()
             if (self.car.gearshift >0 and self.car.speed <= 0) or (self.car.gearshift <0 and self.car.speed >= 0) :
                 # 設定倒車方向盤方向
-                # self.correct_car_position()
+                self.correct_car_position()
                 self.back_steering_angle = self.car.max_steering_angle
                 if self.car.steering_angle > 0.0:
                     self.back_steering_angle = -self.car.max_steering_angle 
@@ -99,7 +99,48 @@ class CarController:
             self.car.throttle = self.car_throttle   # 加油門
             self.car.gearshift = 1.0                # 排檔向前
             self.car.brakerate = 0.0                # 鬆剎車
+            if self.chk_run_circle():
+                self.init_back()
+                self.drive_state = DriveState.DEC
 
+    def chk_run_circle(self):
+        ret = False
+        if self.ball.move_step == 0.0:
+            # 只有在車輛轉彎角度最大時才檢查
+            if abs(self.car.steering_angle) == self.car.max_steering_angle:
+                # 取得車輛轉彎圓心
+                centerx, centery = self.get_circle_center()
+                # 兩個都是 0 表示在直走狀態, 
+                if centerx != 0 and centery != 0:
+                    # 取得車與圓心距離
+                    car_dist = np.sqrt( pow(self.car.x - centerx, 2) + pow(self.car.y-centery, 2) )
+                    # 取得球與圓心距離
+                    ball_dist = np.sqrt( pow(self.ball.rect.centerx - centerx, 2) + pow(self.ball.rect.centery-centery, 2) )
+                    # 若球與圓心比車的距離近, 表示無法撞到球, return true
+                    if (car_dist-self.car.car_width/2-self.ball.radius/2) > ball_dist:
+                        ret = True
+                        print("will turn circle infinity")
+        return ret
+
+    def get_circle_center(self):
+        theta = self.car.orientation # 車輛目前方向
+        alpha = self.car.steering_angle # 車輛最大轉向
+        dist = self.car.speed # 移動距離
+        length = self.car.car_length # 車輛長度(應是前後輪軸長度)
+
+        beta = (dist/length)*np.tan(alpha)
+        cx = cy = radius = 0.0
+        if beta > 0.001 or beta < -0.001:
+            # 算出轉彎半徑
+            radius = dist/beta 
+            # 計算圓心
+            cx = self.car.x - radius * np.sin(theta)
+            cy = self.car.y - radius * np.cos(theta)
+        
+        return (cx,cy)    
+
+
+    # 會撞到的話直接調整位置
     def correct_car_position(self):
         screen_width = self.car.display_width
         screen_height = self.car.display_height
@@ -117,17 +158,26 @@ class CarController:
             self.car.y = screen_height - chk_down
 
 
+    # 取得四個邊與中心點的距離
     def get_hit_length(self):
-        chk_width = self.car.car_width /2
-        chk_length = self.car.car_length / 2
+        # 車輛寬高的一半, 就是中心點
+        car_width_helf = self.car.car_width /2
+        car_length_helf = self.car.car_length / 2
+        # 取得車輛方向及角度
         orientation = self.car.orientation
         degree = np.rad2deg(orientation)
-        dMod = degree % 90
 
-        first_value = (dMod/90) * chk_width + (90-dMod) / 90 * chk_length
-        second_value = (dMod/90) * chk_length + (90-dMod) / 90 * chk_width
+        orient90 = np.pi / 2 # (PI是180度, 90度為 PI/2 )
+        # 用右上象限來算車輛與中心線距離, 因此 mod 90度 (0度車輛朝右, 90度朝上)
+        orient = orientation % orient90
+        # 計算車輛 x, y 各自的長度
+        dx = np.cos(orient) * car_length_helf + np.cos(orient90-orient) * car_width_helf
+        dy = np.sin(orient) * car_length_helf + np.sin(orient90-orient) * car_width_helf
+        first_value = dx
+        second_value = dy
 
         chk_up = chk_right = chk_left = chk_down = 0.0
+        # 依照前後行進方向及車輛角度, 設定會撞到的方向的(不會撞到的方向就維持0)
         if self.car.speed >= 0:
             if degree <= 90:
                 chk_right = first_value
@@ -195,16 +245,9 @@ class CarController:
     def get_step_will_hit_wall(self, test_steps):
         screen_width = self.car.display_width
         screen_height = self.car.display_height
-        car_width = self.car.car_length
-
+        
         # car: CarModel = self.car.copy()
         self.car.save_status()
-        chk_width = self.car.car_width /2
-        chk_length = self.car.car_length / 2
-
-        chk_up = chk_right = chk_left = chk_down = 0.0
-        orientation = 0.0
-        degree = 0.0
 
         hit_step = 999
         hit_dir = 'none'
@@ -215,22 +258,21 @@ class CarController:
             self.car.x = x
             self.car.y = y
             
-            (chk_up, chk_right, chk_left, chk_down)=self.get_hit_length()
+            (chk_up, chk_right, chk_left, chk_down) = self.get_hit_length()
 
-            # self.car.steering_angle = theta
-            if x < chk_left:
+            if x - chk_left < 0:
                 hit_step = i
                 hit_dir = 'left'
                 break
-            if x > screen_width - chk_right:
+            if x + chk_right > screen_width :
                 hit_step = i
                 hit_dir = 'right'
                 break
-            if y < chk_up:
+            if y - chk_up < 0:
                 hit_step = i
                 hit_dir = 'up'
                 break
-            if y > screen_height - chk_down:
+            if y + chk_down > screen_height:
                 hit_step = i
                 hit_dir = 'down'
                 break
