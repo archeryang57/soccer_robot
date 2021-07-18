@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from CarModel import CarModel
 from Ball import Ball
 from Door import Door
@@ -105,16 +106,17 @@ class CarController:
 
     def chk_run_circle(self):
         ret = False
-        if self.ball.move_step == 0.0:
-            # 只有在車輛轉彎角度最大時才檢查
+        # 只在球不動時檢查
+        if self.ball.speed == 0.0:
+            # 在車輛轉彎角度最大時, 檢查是否球在車輛轉彎半徑內撞不到.
             if abs(self.car.steering_angle) == self.car.max_steering_angle:
                 # 取得車輛轉彎圓心
                 centerx, centery = self.get_circle_center()
                 # 兩個都是 0 表示在直走狀態, 
                 if centerx != 0 and centery != 0:
-                    # 取得車與圓心距離
+                    # 計算車輛轉彎半徑(車與圓心距離)
                     car_dist = np.sqrt( pow(self.car.x - centerx, 2) + pow(self.car.y-centery, 2) )
-                    # 取得球與圓心距離
+                    # 計算球與圓心距離
                     ball_dist = np.sqrt( pow(self.ball.rect.centerx - centerx, 2) + pow(self.ball.rect.centery-centery, 2) )
                     # 若球與圓心比車的距離近, 表示無法撞到球, return true
                     if (car_dist-self.car.car_width/2-self.ball.radius/2) > ball_dist:
@@ -245,7 +247,7 @@ class CarController:
     def get_step_will_hit_wall(self, test_steps):
         screen_width = self.car.display_width
         screen_height = self.car.display_height
-        
+
         # car: CarModel = self.car.copy()
         self.car.save_status()
 
@@ -280,3 +282,91 @@ class CarController:
         self.car.load_status()
 
         return (hit_step, hit_dir)
+
+
+    def binomial(self, i, n):
+        """Binomial coefficient"""
+        return math.factorial(n) / float(
+            math.factorial(i) * math.factorial(n - i))
+
+
+    def bernstein(self, t, i, n):
+        """Bernstein polynom"""
+        return self.binomial(i, n) * (t ** i) * ((1 - t) ** (n - i))
+
+
+    def bezier(self, t, points):
+        """Calculate coordinate of a point in the bezier curve"""
+        n = len(points) - 1
+        x = y = 0
+        for i, pos in enumerate(points):
+            bern = self.bernstein(t, i, n)
+            x += pos[0] * bern
+            y += pos[1] * bern
+        return x, y
+
+
+    def bezier_curve_range(self, n, points):
+        """Range of points in a curve bezier"""
+        path=[]
+        for i in range(n):
+            t = i / float(n - 1)
+            path.append(self.bezier(t, points))
+        return path
+        
+    def get_bezier_path(self):
+        start_point = self.car.rect.center
+        end_point = self.ball.rect.center
+        control_range = 0
+        if abs(end_point[0]-start_point[0]) > abs(end_point[0]-start_point[0]):
+            control_range = abs(end_point[0]-start_point[0])/2
+        else:
+            control_range = abs(end_point[1]-start_point[1])/2
+        if control_range < 100:
+            control_range = 100 # ( end_point[0] - start_point[0] ) / 2
+
+        controlPoints = []
+
+        # 啟始點, 車輛位置
+        controlPoints.append(start_point)
+
+        # 控制點 2: 與機器人方向相切的點
+        x = self.car.x + self.car.dx * control_range
+        y = self.car.y + self.car.dy * control_range
+        controlPoints.append((x, y))
+
+        # 控制點 3: 與射球角度相切的點
+        x = self.ball.rect.centerx - self.door.rect.centerx
+        y = self.ball.rect.centery - self.door.rect.centery
+        max_value = x if abs(x) > abs(y) else y
+        x = self.ball.rect.centerx + (x / max_value) * control_range
+        y = self.ball.rect.centery + (y / max_value) * control_range
+
+        controlPoints.append((x, y))
+
+
+        # 結束點, 球的位置
+        controlPoints.append(end_point)
+        
+        steps = abs(start_point[0]-end_point[0]) + abs(start_point[1]-end_point[1])
+
+        path = self.bezier_curve_range(steps, controlPoints)
+
+        return path
+
+    #     return path
+    #     # # 計算路徑 3/2 點的座標
+    #     # # X 座標
+    #     # for i in range(1, 4):
+    #     #     for j in range(2):
+    #     #         bezier[j].x = 0.65 * bezier[j].x + 0.35 * bezier[j+1].x
+    #     # # Y 座標
+    #     # for i in range(1, 4):
+    #     #     for j in range(2):
+    #     #         bezier[j].y = 0.65 * bezier[j].y + 0.35 * bezier[j+1].y
+
+
+
+        #
+
+

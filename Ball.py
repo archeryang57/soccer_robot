@@ -14,7 +14,7 @@ class Ball(pygame.sprite.Sprite):
         self.image.fill((255, 255, 255))
         self.image.set_colorkey((255, 255, 255))
         self.color = color
-        self.move_step = 0.0
+        self.speed = 0.0
         self.dx = 0.0
         self.dy = 0.0
         self.friction = 0.02
@@ -26,8 +26,8 @@ class Ball(pygame.sprite.Sprite):
         self.display_width, self.display_height = pygame.display.get_surface().get_size()
 
     def update(self):
-        self.x += self.dx * self.move_step # * self.x_dir
-        self.y += self.dy * self.move_step # * self.y_dir
+        self.x += self.dx * self.speed # * self.x_dir
+        self.y += self.dy * self.speed # * self.y_dir
         self.rect.x = int(self.x)
         self.rect.y = int(self.y)
 
@@ -49,8 +49,8 @@ class Ball(pygame.sprite.Sprite):
             self.y = float(self.rect.y)
             self.dy = -self.dy
 
-        step = self.move_step - self.friction
-        self.move_step = step if step > 0 else 0
+        step = self.speed - self.friction
+        self.speed = step if step > 0 else 0
 
 
 

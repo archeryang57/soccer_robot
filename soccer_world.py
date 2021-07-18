@@ -64,10 +64,30 @@ def config_window():
 
     window.mainloop()
 
-def drawLine(disp, ball, robot):
-    pygame.draw.line(disp, start_pos=(ball.rect.x+ball.radius,ball.rect.y+ball.radius), 
-                    end_pos=(robot.rect.x+robot.rect.width/2, robot.rect.y+robot.rect.height/2), color=[128,128,0])
-    
+def draw_path(path):
+    (x,y) = path[0]
+    for (_x,_y) in path:
+        pygame.draw.line(pygame.display.get_surface(),(255, 0, 0),(x, y),(_x,_y), 1)
+        (x,y) = (_x, _y)
+
+def reset_instence(car:CarModel, ball:Ball):
+    car.x = 200
+    car.y = 200
+    car.speed = 0
+
+    ball.x = 400
+    ball.y = 280
+    ball.friction = friction
+
+def ball_in_corners(ball:Ball):
+    ret = False
+    if ball.speed == 0:
+        if ball.rect.top <= 10 or ball.rect.bottom >= screen_height - 10:
+            if ball.rect.left <= 10 or ball.rect.right >= screen_width - 10:
+                ret = True
+
+    return ret
+
 def main():
     display_width = screen_width
     display_height = screen_height
@@ -91,7 +111,7 @@ def main():
     car.speed = robot_step
     car.set_throttle(throttle)
 
-    door = Door([255, 0, 0], [0, 120])
+    door = Door([255, 0, 0], [0, screen_height/2 - 60])
 
     group = pygame.sprite.Group()
     group.add(car)
@@ -135,6 +155,12 @@ def main():
         display.fill(white)
         group.update()
 
+        if ball_in_corners(ball):
+            reset_instence(car, ball)
+
+        path = controller.get_bezier_path()
+        draw_path(path)
+
         if pygame.sprite.collide_rect(door, ball):
             ball.x = door.rect.width
             ball.dx = abs(ball.dx)
@@ -147,7 +173,6 @@ car.degrees:{round(math.degrees(car.orientation),2)},  car speed:{round(car.spee
             True, blue, white)
         textRect = text.get_rect().topleft = (10 , display_height-20 )
         display.blit(text, textRect)
-        # drawLine(display, ball, car)
         pygame.display.update()
 
         # from datetime import datetime

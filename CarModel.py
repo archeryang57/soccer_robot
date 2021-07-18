@@ -58,6 +58,7 @@ class CarModel(pygame.sprite.Sprite):
         self.car_length = self.image.get_height()*1.0
         self.car_width = self.image.get_width()*1.0
         self.image.set_colorkey((0, 0, 0))
+        self.isDrawTrack = False
 
         self.rect = self.image.get_rect()
         self.rect.topleft = initial_position
@@ -165,8 +166,9 @@ class CarModel(pygame.sprite.Sprite):
             self.dy = dy / deno
 
         # 存入計算點並畫軌跡線
-        self.point_list.append((_x,_y))
-        self.draw_track()
+        if self.isDrawTrack:
+            self.point_list.append((_x,_y))
+            self.draw_track()
 
         # 更新車輛位置及角度
         self.orientation = _theta
@@ -261,7 +263,7 @@ class CarModel(pygame.sprite.Sprite):
 
         ball.dx = init_x + random.random()/5
         ball.dy = init_y + random.random()/5
-        ball.move_step = self.speed * 2.0
+        ball.speed = self.speed * 2.0
 
     def copy(self):
         copyobj = CarModel([0, 128, 255], [200, 200])
