@@ -1,16 +1,26 @@
+from typing import List
 import numpy as np
 import math
 from CarModel import CarModel
 from Ball import Ball
 from Door import Door
 from enum import IntEnum
- 
+
+
+'''
+To Do:
+1. 依路徑行駛會偏移問題
+    
+'''
 class DriveState(IntEnum):  # 倒車階段 0:正常往前, 1:倒車減速階段 2:倒車加速階段, 3:減速階段
     NORMAL = 0
     BACK_DEC = 1
     BACK_ACC = 2
     DEC = 3
 
+class DriveMode(IntEnum):
+    BY_DIRECTLY = 0
+    BY_PATH = 1
 class CarController:
     brakeForce = 0.1
     def __init__(self, car: CarModel, ball: Ball, door: Door):
@@ -24,13 +34,16 @@ class CarController:
         self.car_throttle = car.throttle
         self.back_throttle = -car.throttle
         self.hit_dir = 'head'
+        self.drive_mode = DriveMode.BY_DIRECTLY
+        self.temp_path = []
+        self.way_point = []
 
 
     def cal_ball_theta(self):
         # v1: 車子移動的向量
         v1 = [self.car.dx, self.car.dy]
         # v2: 以車子為原點, 與球的向量
-        v2 = [self.car.x-self.ball.x, self.car.y - self.ball.y]
+        v2 = [self.ball.x-self.car.x, self.ball.y - self.car.y]
         rad =self.get_clock_angle(v1, v2)
         
         # deg =np.rad2deg(rad) % 360
@@ -46,19 +59,113 @@ class CarController:
         theta = np.arccos(np.dot(v1,v2)/TheNorm)
 
         if rho < 0:
-            return -theta
-        else:
             return theta
+        else:
+            return -theta
 
 
     def update(self):
-        # 計算與球的角度
-        rad = self.cal_ball_theta()
-        # 正對球 radius 是 PI (180度)
-        if rad >= 0:
-            sterring_angle = np.pi - rad
+        # self.drive_to_ball_directly()
+        # 只有往前才算路徑
+        if self.drive_state == DriveState.NORMAL:
+            if self.drive_mode == DriveMode.BY_DIRECTLY:
+                self.temp_path, self.way_point = self.get_bezier_path()
+                # 檢查是否路徑可行
+                if self.path_runable(self.temp_path):
+                    # 可以的話就改走路徑
+                    self.drive_mode = DriveMode.BY_PATH
+                    drive_step = self.drive_by_path(self.temp_path)
+                    if drive_step == 0:
+                        self.drive_mode = DriveMode.BY_DIRECTLY
+                    else:
+                        for i in range(drive_step):
+                            del self.temp_path[0]
+                else:
+                    self.drive_to_ball_directly()
+            else:  # 若為路徑模式就走路徑
+                drive_step = self.drive_by_path(self.temp_path)
+                if drive_step == 0:
+                    self.drive_mode = DriveMode.BY_DIRECTLY
+                else:
+                    for i in range(drive_step):
+                        # 將走過的路徑刪除
+                        del self.temp_path[0]
+                        if len(self.temp_path) == 0:
+                            # 路徑走完改為直接朝球走
+                            self.drive_mode = DriveMode.BY_DIRECTLY
+                            break
         else:
-            sterring_angle = -(np.pi + rad )
+            self.drive_to_ball_directly()
+
+    # 檢查路徑是否可以走(會不會撞牆, 彎角超過轉彎半徑)
+    def path_runable(self, path):
+        max_angle = self.car.max_steering_angle
+
+        (old_x, old_y) = path[0]
+        ret = True
+        i = 0
+        v1 = [self.car.dx, self.car.dy]
+        for (_x, _y) in path[1:]:
+            i += 1
+            # 路線超過可以開的範圍則忽略
+            if self.is_out_of_field(_x, _y):
+                ret = False
+                break
+
+            # v2: 第一點與第二點的向量
+            v2 = [_x - old_x, _y - old_y]
+            rad = self.get_clock_angle(v1, v2)
+            if abs(rad) > 0.04:  # 應該用max_angle, 要再check問題所在
+                ret = False
+                break
+            old_x = _x
+            old_y = _y
+            v1 = v2
+
+        return ret
+
+    def is_out_of_field(self, x, y):
+        ret = False
+        screen_width = self.car.display_width
+        screen_height = self.car.display_height
+
+        if x < 45 or x > screen_width - 45:
+            ret = True
+        
+        if y < 45 or y > screen_height - 45:
+            ret = True
+
+        return ret
+
+  
+
+    # 透過路徑行走
+    def drive_by_path(self, path):
+        step = 0
+        # 檢查路徑是否已走完
+        if len(self.temp_path) > 1:
+            v1 = [self.car.dx, self.car.dy]
+
+            (old_x, old_y) = path[0]
+            if int(self.car.speed) < len(path):
+                step = int(self.car.speed) 
+
+            if step > len(path) - 1:
+                step = len(path) - 1
+            (_x, _y) = path[step]
+
+            # v2: 第一點與第二點的向量
+            v2 = [_x - old_x, _y - old_y]
+            rad = self.get_clock_angle(v1, v2)
+
+            # 依算出的角度調整車輪角度
+            self.car.steering_angle = rad
+        return step
+
+    # 以球為目標行駛
+    def drive_to_ball_directly(self):    
+        # 計算與球的角度
+        sterring_angle = self.cal_ball_theta()
         
         # 將方向盤轉向球的方向(超過最大轉角會以最大轉角旋轉)
         self.car.set_steering_angle(sterring_angle)
@@ -77,7 +184,7 @@ class CarController:
             self.stop_car()
             if (self.car.gearshift >0 and self.car.speed <= 0) or (self.car.gearshift <0 and self.car.speed >= 0) :
                 # 設定倒車方向盤方向
-                self.correct_car_position()
+                # self.correct_car_position()
                 self.back_steering_angle = self.car.max_steering_angle
                 if self.car.steering_angle > 0.0:
                     self.back_steering_angle = -self.car.max_steering_angle 
@@ -94,7 +201,8 @@ class CarController:
             if self.car.speed < 0:  # 車子在向後開的狀態
                 self.stop_car()     # 將車停住
             else:           # 已煞住車或車子在向前開的狀態
-                self.drive_state = DriveState.NORMAL 
+                self.drive_state = DriveState.NORMAL
+                self.car.set_steering_angle(sterring_angle)
 
         if self.drive_state == DriveState.NORMAL:
             self.car.throttle = self.car_throttle   # 加油門
@@ -104,6 +212,7 @@ class CarController:
                 self.init_back()
                 self.drive_state = DriveState.DEC
 
+    # 檢查是否球在車輛轉彎半徑內撞不到
     def chk_run_circle(self):
         ret = False
         # 只在球不動時檢查
@@ -284,27 +393,16 @@ class CarController:
         return (hit_step, hit_dir)
 
 
-    def binomial(self, i, n):
-        """Binomial coefficient"""
-        return math.factorial(n) / float(
-            math.factorial(i) * math.factorial(n - i))
-
-
-    def bernstein(self, t, i, n):
-        """Bernstein polynom"""
-        return self.binomial(i, n) * (t ** i) * ((1 - t) ** (n - i))
-
-
     def bezier(self, t, points):
         """Calculate coordinate of a point in the bezier curve"""
         n = len(points) - 1
         x = y = 0
         for i, pos in enumerate(points):
-            bern = self.bernstein(t, i, n)
-            x += pos[0] * bern
-            y += pos[1] * bern
+            binomial = math.factorial(n) / float(math.factorial(i) * math.factorial(n - i))
+            bernstein = binomial * (t ** i) * ((1 - t) ** (n - i))
+            x += pos[0] * bernstein
+            y += pos[1] * bernstein
         return x, y
-
 
     def bezier_curve_range(self, n, points):
         """Range of points in a curve bezier"""
@@ -319,11 +417,12 @@ class CarController:
         end_point = self.ball.rect.center
         control_range = 0
         if abs(end_point[0]-start_point[0]) > abs(end_point[0]-start_point[0]):
-            control_range = abs(end_point[0]-start_point[0])/2
+            control_range = abs(end_point[0]-start_point[0]) # /2
         else:
-            control_range = abs(end_point[1]-start_point[1])/2
-        if control_range < 100:
-            control_range = 100 # ( end_point[0] - start_point[0] ) / 2
+            control_range = abs(end_point[1]-start_point[1]) # /2
+        
+        # if control_range < 150:
+        #     control_range = 150 # ( end_point[0] - start_point[0] ) / 2
 
         controlPoints = []
 
@@ -344,29 +443,28 @@ class CarController:
 
         controlPoints.append((x, y))
 
-
         # 結束點, 球的位置
         controlPoints.append(end_point)
         
-        steps = abs(start_point[0]-end_point[0]) + abs(start_point[1]-end_point[1])
-
+        # 算出路徑
+        steps = 1000
         path = self.bezier_curve_range(steps, controlPoints)
 
-        return path
+        # 取得way points
+        way_point = []
+        for i in range(99,steps,100):
+            way_point.append(path[i])
 
-    #     return path
-    #     # # 計算路徑 3/2 點的座標
-    #     # # X 座標
-    #     # for i in range(1, 4):
-    #     #     for j in range(2):
-    #     #         bezier[j].x = 0.65 * bezier[j].x + 0.35 * bezier[j+1].x
-    #     # # Y 座標
-    #     # for i in range(1, 4):
-    #     #     for j in range(2):
-    #     #         bezier[j].y = 0.65 * bezier[j].y + 0.35 * bezier[j+1].y
+        # 將重覆的點去除
+        oldx = int(path[len(path)-1][0])
+        oldy = int(path[len(path)-1][1])
+        for i in range(len(path)-2, -1, -1):
+            x = int(path[i][0])
+            y = int(path[i][1])
+            if oldx == x and oldy == y:
+                del path[i]
+            else:
+                oldx = x
+                oldy = y
 
-
-
-        #
-
-
+        return path, way_point

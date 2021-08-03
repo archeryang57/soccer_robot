@@ -1,5 +1,5 @@
 
-from CarController import CarController
+from CarController import CarController, DriveMode, DriveState
 import pygame
 import math
 import numpy as np
@@ -65,19 +65,27 @@ def config_window():
     window.mainloop()
 
 def draw_path(path):
-    (x,y) = path[0]
-    for (_x,_y) in path:
-        pygame.draw.line(pygame.display.get_surface(),(255, 0, 0),(x, y),(_x,_y), 1)
-        (x,y) = (_x, _y)
+    if len(path) > 1:
+        (x,y) = path[0]
+        for (_x,_y) in path:
+            pygame.draw.line(pygame.display.get_surface(),(255, 0, 0),(x, y),(_x,_y), 1)
+            (x,y) = (_x, _y)
 
-def reset_instence(car:CarModel, ball:Ball):
-    car.x = 200
-    car.y = 200
-    car.speed = 0
+def reset_car(car:CarModel):
+    car.x = 200.0
+    car.y = 200.0
+    # car.dx = 0.0
+    # car.dy = 0.0
+    # car.orientation = 0.0
+    # car.gearshift = 1.0
+    # car.speed = 0.0
 
-    ball.x = 400
-    ball.y = 280
-    ball.friction = friction
+def reset_ball(ball:Ball):
+    ball.x = 400.0
+    ball.y = 280.0
+    # ball.dx = 0.0
+    # ball.dy = 0.0
+    # ball.speed = 0.0
 
 def ball_in_corners(ball:Ball):
     ret = False
@@ -101,13 +109,11 @@ def main():
     pygame.display.set_caption("Robot_World!")
 
     ball = Ball([0, 255, 0], [400, 280])
-    # ball2 = Ball([0, 128, 0], [100, 200])
     ball.friction = friction
+    # ball2 = Ball([0, 128, 0], [100, 200])
     # ball2.friction = friction
 
     car = CarModel([0, 128, 255], [200, 200])
-    car.add_ball(ball)
-    # car.add_ball(ball2)
     car.speed = robot_step
     car.set_throttle(throttle)
 
@@ -156,15 +162,25 @@ def main():
         group.update()
 
         if ball_in_corners(ball):
-            reset_instence(car, ball)
+            # reset_car(car)
+            reset_ball(ball)
 
-        path = controller.get_bezier_path()
-        draw_path(path)
+        if controller.drive_mode == DriveMode.BY_PATH:
+            draw_path(controller.temp_path)
+        else:
+            if controller.drive_state == DriveState.NORMAL:
+                path = controller.get_bezier_path()
+                draw_path(path)
 
         if pygame.sprite.collide_rect(door, ball):
             ball.x = door.rect.width
             ball.dx = abs(ball.dx)
+            # reset_car(car)
+            reset_ball(ball)
             print("Score")
+
+        if pygame.sprite.collide_mask(car, ball):
+            car.kick_ball(ball)
 
         group.draw(display)
     
