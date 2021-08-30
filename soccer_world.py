@@ -1,21 +1,26 @@
 
 from CarController import CarController, DriveMode, DriveState
 import pygame
-import math
-import numpy as np
 import tkinter as tk
+from Logger import Logger
 from Ball import Ball
 from CarModel import CarModel
-# from CarModelOrig import CarModel
 from Door import Door
 
 speed = 30
-friction = 0.1
+friction = 0.15
 robot_step = 1
 throttle = 0.8
 
 screen_width = 800
 screen_height = 600
+display_width = screen_width
+display_height = screen_height
+
+white = (255, 255, 255)
+green = (0, 255, 0)
+blue = (0, 0, 128)
+
 
 def set_throttle(throttle_value):
     global throttle
@@ -71,6 +76,11 @@ def draw_path(path):
             pygame.draw.line(pygame.display.get_surface(),(255, 0, 0),(x, y),(_x,_y), 1)
             (x,y) = (_x, _y)
 
+def draw_points(way_point, color):
+    if len(way_point) > 0:
+        for pos in way_point:
+            pygame.display.get_surface().fill(color, (pos, (4, 4)))
+
 def reset_car(car:CarModel):
     car.x = 200.0
     car.y = 200.0
@@ -97,23 +107,17 @@ def ball_in_corners(ball:Ball):
     return ret
 
 def main():
-    display_width = screen_width
-    display_height = screen_height
-    white = (255, 255, 255)
-    green = (0, 255, 0)
-    blue = (0, 0, 128)
-
     pygame.init()
     clock = pygame.time.Clock()
     display = pygame.display.set_mode((display_width, display_height))
     pygame.display.set_caption("Robot_World!")
 
-    ball = Ball([0, 255, 0], [400, 280])
+    ball = Ball([0, 255, 0], [400, 200])
     ball.friction = friction
     # ball2 = Ball([0, 128, 0], [100, 200])
     # ball2.friction = friction
 
-    car = CarModel([0, 128, 255], [200, 200])
+    car = CarModel([0, 128, 255], [600, 400])
     car.speed = robot_step
     car.set_throttle(throttle)
 
@@ -126,6 +130,7 @@ def main():
     group.add(door)
 
     controller = CarController(car, ball, door)
+    logger = Logger()
 
     font = pygame.font.Font('freesansbold.ttf', 12)
 
@@ -167,10 +172,14 @@ def main():
 
         if controller.drive_mode == DriveMode.BY_PATH:
             draw_path(controller.temp_path)
+            draw_points(controller.way_point, green)
         else:
             if controller.drive_state == DriveState.NORMAL:
-                path = controller.get_bezier_path()
-                draw_path(path)
+                draw_path(controller.temp_path)
+                # draw_points(controller.way_point, green)
+                # path, way_point = controller.get_bezier_path()
+                # draw_path(path)
+                # draw_points(way_point, blue)
 
         if pygame.sprite.collide_rect(door, ball):
             ball.x = door.rect.width
@@ -181,20 +190,23 @@ def main():
 
         if pygame.sprite.collide_mask(car, ball):
             car.kick_ball(ball)
+            controller.temp_path = []
 
         group.draw(display)
     
-        text = font.render(f'car orientation:{round(car.orientation,4)}, \
-car.degrees:{round(math.degrees(car.orientation),2)},  car speed:{round(car.speed,2)}', 
-            True, blue, white)
-        textRect = text.get_rect().topleft = (10 , display_height-20 )
-        display.blit(text, textRect)
         pygame.display.update()
+        # show_text(font, display)
 
-        # from datetime import datetime
-        # dateTimeObj = datetime.now()
-        # timeStr = dateTimeObj.strftime("%H%M%S%f")
-        # pygame.image.save(display, timeStr +".jpeg")
+        pygame.image.save(display, logger.get_log_img_filename() )
+        logger.save_log(car)
+
+def show_text(font, display, car):
+    import math
+    text = font.render(f'car orientation:{round(car.orientation,4)}, \
+car.degrees:{round(math.degrees(car.orientation),2)},  car speed:{round(car.speed,2)}', 
+        True, blue, white)
+    textRect = text.get_rect().topleft = (10 , display_height-20 )
+    display.blit(text, textRect)
 
 
 if __name__ == "__main__":

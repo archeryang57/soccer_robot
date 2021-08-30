@@ -6,7 +6,6 @@ import copy
 from collections import deque
 
 class CarModel(pygame.sprite.Sprite):
-
 # const 參數
     # 最大轉向角度
     max_steering_angle = np.pi/5.0
@@ -42,7 +41,8 @@ class CarModel(pygame.sprite.Sprite):
     dy = 0.0
 
     # 車頭方向(角度)
-    orientation = 2.0 * np.pi
+    # MPC model predictive control
+    orientation = np.pi /2
 
     # 車輪角度
     steering_angle = np.pi / 8.0
