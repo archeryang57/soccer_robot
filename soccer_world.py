@@ -130,6 +130,8 @@ def main():
     group.add(door)
 
     controller = CarController(car, ball, door)
+
+    # 建立 logger
     logger = Logger()
 
     font = pygame.font.Font('freesansbold.ttf', 12)
@@ -197,7 +199,9 @@ def main():
         pygame.display.update()
         # show_text(font, display)
 
+        # 存圖檔
         pygame.image.save(display, logger.get_log_img_filename() )
+        # 加一筆紀錄
         logger.save_log(car)
 
 def show_text(font, display, car):
