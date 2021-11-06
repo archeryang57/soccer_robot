@@ -5,6 +5,7 @@ from pyomo.dae import *
 N = 9 # forward predict steps
 ns = 6  # state numbers / here: 1: x, 2: y, 3: psi, 4: v, 5: cte, 6: epsi
 na = 2  # actuator numbers /here: 1: steering angle, 2: throttle
+max_speed = 10.
 
 
 class MPC(object):
@@ -18,7 +19,7 @@ class MPC(object):
         m.wg       = Param(RangeSet(0, 3), initialize={0:1., 1:10., 2:100., 3:130000}, mutable=True) 
         m.dt       = Param(initialize=0.1, mutable=True)
         m.Lf       = Param(initialize=2.67, mutable=True)
-        m.ref_v    = Param(initialize=75., mutable=True)
+        m.ref_v    = Param(initialize=max_speed, mutable=True)
         m.ref_cte  = Param(initialize=0.0, mutable=True)
         m.ref_epsi = Param(initialize=0.0, mutable=True)
         m.s0       = Param(RangeSet(0, ns-1), initialize={0:0., 1:0., 2:0., 3:0., 4:0., 5:0.}, mutable=True)
@@ -70,10 +71,12 @@ class MPC(object):
         m.suaobj  = m.wg[2]*sum((m.ua[k+1]-m.ua[k])**2 for k in m.uk1) 
         m.obj = Objective(expr = m.cteobj+m.epsiobj+m.vobj+m.udobj+m.uaobj+m.sudobj+m.suaobj, sense=minimize)
         
-        self.iN = m#.create_instance()
+        self.iN = m.create_instance()
         
-    def Solve(self, state, coeffs):        
+    def Solve(self, state, coeffs):
+        # 0: x, 1: y, 2: psi, 3: v, 4: cte, 5: epsi
         self.iN.s0.reconstruct({0:state[0], 1: state[1], 2:state[2], 3:state[3], 4:state[4], 5:state[5]})
+        
         self.iN.coeffs.reconstruct({0:coeffs[0], 1:coeffs[1], 2:coeffs[2], 3:coeffs[3]})
         self.iN.f_update.reconstruct()
         self.iN.s0_update.reconstruct()
@@ -84,3 +87,40 @@ class MPC(object):
         steering_angle = self.iN.ud[0]()
         throttle = self.iN.ua[0]()
         return x_pred_vals, y_pred_vals, steering_angle, throttle
+
+
+# python version
+# numpy.polyfit(x, y, deg, rcond=None, full=False, w=None, cov=False)
+#
+# fit polynomial C++ example
+# double polyeval(Eigen::VectorXd coeffs, double x) {
+#   double result = 0.0;
+#   for (int i = 0; i < coeffs.size(); i++) {
+#     result += coeffs[i] * pow(x, i);
+#   }
+#   return result;
+# }
+
+# // Fit a polynomial.
+# // Adapted from
+# // https://github.com/JuliaMath/Polynomials.jl/blob/master/src/Polynomials.jl#L676-L716
+# Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
+#                         int order) {
+#   assert(xvals.size() == yvals.size());
+#   assert(order >= 1 && order <= xvals.size() - 1);
+#   Eigen::MatrixXd A(xvals.size(), order + 1);
+
+#   for (int i = 0; i < xvals.size(); i++) {
+#     A(i, 0) = 1.0;
+#   }
+
+#   for (int j = 0; j < xvals.size(); j++) {
+#     for (int i = 0; i < order; i++) {
+#       A(j, i + 1) = A(j, i) * xvals(j);
+#     }
+#   }
+
+#   auto Q = A.householderQr();
+#   auto result = Q.solve(yvals);
+#   return result;
+# }
