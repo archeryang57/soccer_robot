@@ -6,6 +6,8 @@ from Ball import Ball
 from Door import Door
 from enum import IntEnum
 
+from mpc import MPC
+
 
 '''
 To Do:
@@ -158,36 +160,54 @@ class CarController:
 
     # 透過 Way Point 行駛
     def drive_by_way_point(self):
-        step = 0
-        # 檢查路徑是否已走完
-        if len(self.way_point) > 0:
-            v1 = [self.car.dx, self.car.dy]
-            (wp_x, wp_y) = self.way_point[0]
-            # v2: car與way point的向量
-            div_x1 = self.car.x - wp_x
-            div_y1 = self.car.y - wp_y
-            v2 = [ div_x1, div_y1]
 
-            rad = self.get_clock_angle(v1, v2)
+        #使用MPC行駛
 
-            # 依算出的角度調整車輪角度
-            self.car.set_steering_angle(-rad)
-
-            # 計算車子行走後的位置
-            _x, _y, _theta = self.car.next_step()
-            div_x2 = _x - wp_x
-            div_y2 = _y - wp_y
-
-            # 若距離變長, 表示已超過way point.
-            # len_1 = np.sqrt(div_x1**2+div_y1**2)
-            # len_2 = np.sqrt(div_x2**2+div_y2**2)
-            # if len_2 > len_1:
+        ptsx_car = np.array(self.way_point[0:])
+        ptsy_car = np.array(self.way_point[:0])
+        #print(ptsx_car)
+        #print(ptsy_car)
             
-            # 依計算點與way point的角度檢查是否已超過way point
-            rad_1 = np.arctan2(div_x1, div_y1)
-            rad_2 = np.arctan2(div_x2, div_y2)
-            if abs(rad_1-rad_2) > 1.5:
-                step = 1
+        coeffs = np.polyfit(ptsx_car, ptsy_car, 3)
+        cte = np.polyval(coeffs, 0)
+        epsi = -np.arctan(coeffs[1])
+        Lf = self.car.car_length
+        dt = 0.1
+
+        # Predict state after latency
+        # x, y and psi are all zero after transformation above
+        v=self.car.speed
+        delta = self.car.steering_angle # 0.0
+        a = self.car.throttle
+
+        pred_px = 0.0 + v * dt # Since psi is zero, cos(0) = 1, can leave out
+        pred_py = 0.0 # Since sin(0) = 0, y stays as 0 (y + v * 0 * dt)
+        pred_psi = 0.0 + v * - delta / Lf * dt
+        pred_v = v + a * dt
+        pred_cte = cte + v * np.sin(epsi) * dt
+        pred_epsi = epsi + v * -delta / Lf * dt
+
+        # Feed in the predicted state values
+        state = [pred_px, pred_py, pred_psi, pred_v, pred_cte, pred_epsi]
+
+        # Solve for new actuations (and to show predicted x and y in the future)
+        mpc = MPC()
+        model = mpc.create_model()
+        ret = mpc.Solve( model, state, coeffs)
+
+        steer_value = ret[0] / (np.deg2rad(25) * Lf)
+        throttle_value = ret[1]
+
+        # 依算出的角度調整車輪角度
+        self.car.set_steering_angle(steer_value)
+        self.car.set_throttle(throttle_value)
+
+            
+        # 依計算點與way point的角度檢查是否已超過way point
+        rad_1 = np.arctan2(div_x1, div_y1)
+        rad_2 = np.arctan2(div_x2, div_y2)
+        if abs(rad_1-rad_2) > 1.5:
+            step = 1
 
         return step
 
@@ -505,7 +525,7 @@ class CarController:
         y = self.car.y + self.car.dy * control_range
         controlPoints.append((x, y))
 
-        # 控制點 3: 與射球角度相切的點
+        # 控制點 3: 與射球角度相切的
         x = self.ball.x - self.door.rect.centerx
         y = self.ball.y - self.door.rect.centery
         max_value = x if abs(x) > abs(y) else y
@@ -518,13 +538,24 @@ class CarController:
         controlPoints.append( (self.ball.x, self.ball.y + 7) )
         
         # 算出路徑
-        steps = 1000
+        steps = 20 # 1000  #20: waypoint, 1000: by path
         path = self.bezier_curve_range(steps, controlPoints)
 
         # 取得way points
         way_point = []
-        for i in range(99,steps,300):
-            way_point.append(path[i])
+        # for i in range(99,steps,300):
+        for i in steps:
+            # way_point.append(path[i])  # 原始程式
+
+            # 轉換waypoint 座標至汽車座標
+            dx = path[i][0] - self.car.x
+            dy = path[i][1] - self.car.y
+            psi = self.car.orientation
+            wx = dx * np.cos(-psi) - dy * np.sin(-psi)
+            wy = dy * np.cos(-psi) - dx * np.sin(-psi)
+
+            # 將轉換的座標放到waypoint中
+            way_point.append([wx,wy])
 
         # 將重覆的點去除
         oldx = int(path[len(path)-1][0])
