@@ -1,14 +1,15 @@
 
 from CarController import CarController, DriveMode, DriveState
-import pygame
+import pygame, sys
 import tkinter as tk
+import numpy as np
 from Logger import Logger
 from Ball import Ball
 from CarModel import CarModel
 from Door import Door
 
 speed = 30
-friction = 0.15
+friction = 0.17
 robot_step = 1
 throttle = 0.8
 
@@ -76,22 +77,29 @@ def draw_path(path):
             pygame.draw.line(pygame.display.get_surface(),(255, 0, 0),(x, y),(_x,_y), 1)
             (x,y) = (_x, _y)
 
-def draw_points(way_point, color):
+def draw_points(way_point, color, car:CarModel):
     if len(way_point) > 0:
+        psi = np.pi
         for pos in way_point:
-            pygame.display.get_surface().fill(color, (pos, (4, 4)))
+            # 轉換汽車座標至地圖座標
+
+            wx = pos[0] * np.cos(-psi) - pos[1] * np.sin(-psi)
+            wy = pos[1] * np.cos(-psi) - pos[0] * np.sin(-psi)
+            wx = car.x + wx
+            wy = car.y + wy
+            pygame.display.get_surface().fill(color, ((wx, wy), (4, 4)))
 
 def reset_car(car:CarModel):
-    car.x = 200.0
-    car.y = 200.0
+    car.x = 600.0
+    car.y = 500.0
     # car.dx = 0.0
     # car.dy = 0.0
-    # car.orientation = 0.0
+    car.orientation = np.deg2rad(135.0)
     # car.gearshift = 1.0
     # car.speed = 0.0
 
 def reset_ball(ball:Ball):
-    ball.x = 400.0
+    ball.x = 200.0
     ball.y = 280.0
     # ball.dx = 0.0
     # ball.dy = 0.0
@@ -113,11 +121,13 @@ def main():
     pygame.display.set_caption("Robot_World!")
 
     ball = Ball([0, 255, 0], [400, 200])
+    reset_ball(ball)
     ball.friction = friction
     # ball2 = Ball([0, 128, 0], [100, 200])
     # ball2.friction = friction
 
     car = CarModel([0, 128, 255], [600, 400])
+    reset_car(car)
     car.speed = robot_step
     car.set_throttle(throttle)
 
@@ -149,6 +159,7 @@ def main():
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
+                    sys.exit()
                 if event.key == pygame.K_SPACE:
                     pygame.time.delay(5000)
                 if event.key == pygame.K_UP:
@@ -164,6 +175,7 @@ def main():
 
             if event.type == pygame.QUIT:
                 pygame.quit()
+                sys.exit()
 
         display.fill(white)
         group.update()
@@ -172,9 +184,9 @@ def main():
             # reset_car(car)
             reset_ball(ball)
 
+        
         if controller.drive_mode == DriveMode.BY_PATH:
-            draw_path(controller.temp_path)
-            draw_points(controller.way_point, green)
+            pass
         else:
             if controller.drive_state == DriveState.NORMAL:
                 draw_path(controller.temp_path)
@@ -182,6 +194,8 @@ def main():
                 # path, way_point = controller.get_bezier_path()
                 # draw_path(path)
                 # draw_points(way_point, blue)
+        draw_path(controller.temp_path)
+        draw_points(controller.way_point, green, car)
 
         if pygame.sprite.collide_rect(door, ball):
             ball.x = door.rect.width

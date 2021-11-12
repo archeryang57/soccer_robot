@@ -1,6 +1,6 @@
 from typing import List
-import numpy as np
-import math
+import numpy as np, math
+from datetime import datetime
 from CarModel import CarModel
 from Ball import Ball
 from Door import Door
@@ -71,7 +71,7 @@ class CarController:
         # 只有往前才算路徑
         if self.drive_state == DriveState.NORMAL:
 
-            if len(self.temp_path) == 0:
+            if len(self.way_point) == 0:
             # if len(self.way_point) == 0:
                 self.drive_mode = DriveMode.BY_DIRECTLY 
 
@@ -79,43 +79,45 @@ class CarController:
                 if self.ball.speed == 0:
                     self.temp_path, self.way_point = self.get_bezier_path()
                     # 檢查是否路徑可行
+                    self.drive_mode = DriveMode.BY_PATH
                     if self.path_runable(self.temp_path):
                         # 可以的話就改走路徑
                         self.drive_mode = DriveMode.BY_PATH
-
-                        drive_step = self.drive_by_path()
-                        # drive_step = self.drive_by_way_point()
+                        drive_step = self.drive_by_way_point()
 
                         if drive_step > 0:
+                            pass
 
                             for i in range(drive_step):
                                 del self.temp_path[0]
                             # del self.way_point[0]
                     else:
                         self.temp_path = []
-                        # self.way_point = []
+                        self.way_point = []
 
                         self.drive_to_ball_directly()
                 else:
-                    # self.way_point=[]
+                    self.way_point=[]
                     self.temp_path = []
 
                     self.drive_to_ball_directly()
             else:  # 若為路徑模式就走路徑
-
-                drive_step = self.drive_by_path()
-                # drive_step = self.drive_by_way_point()
+                self.temp_path, self.way_point = self.get_bezier_path()
+                drive_step = self.drive_by_way_point()
 
                 if drive_step > 0:
-
+                    pass
                     # 將走過的路徑刪除
                     for i in range(drive_step):
                         del self.temp_path[0]                    
                     # del self.way_point[0] 
                 else:
                     self.temp_path = []
+                    self.way_point = []
+
         else:
             self.temp_path = []
+            self.way_point = []
             self.drive_to_ball_directly()
 
     # 檢查路徑是否可以走(會不會撞牆, 彎角超過轉彎半徑)
@@ -136,7 +138,7 @@ class CarController:
             # v2: 第一點與第二點的向量
             v2 = [_x - old_x, _y - old_y]
             rad = self.get_clock_angle(v1, v2)
-            if abs(rad) > 0.05:  # 應該用max_angle, 要再check問題所在
+            if abs(rad) > max_angle: # 0.05:  # 應該用max_angle, 要再check問題所在
                 ret = False
                 break
             old_x = _x
@@ -160,29 +162,33 @@ class CarController:
 
     # 透過 Way Point 行駛
     def drive_by_way_point(self):
-
+        step = 0
         #使用MPC行駛
 
-        ptsx_car = np.array(self.way_point[0:])
-        ptsy_car = np.array(self.way_point[:0])
-        #print(ptsx_car)
-        #print(ptsy_car)
-            
+        ptsx_car = np.array([x[0] for x in self.way_point])[1:10]
+        ptsy_car = np.array([x[1] for x in self.way_point])[1:10]
+        car_x = 0.0 # ptsx_car[0]
+        car_y = 0.0 # ptsy_car[0]
         coeffs = np.polyfit(ptsx_car, ptsy_car, 3)
         cte = np.polyval(coeffs, 0)
-        epsi = -np.arctan(coeffs[1])
+        epsi = np.arctan(coeffs[1])  # original is -np.arctan(coeffs[1])
         Lf = self.car.car_length
         dt = 0.1
 
         # Predict state after latency
         # x, y and psi are all zero after transformation above
-        v=self.car.speed
-        delta = self.car.steering_angle # 0.0
+        v= self.car.speed
+        delta = self.car.steering_angle
         a = self.car.throttle
 
-        pred_px = 0.0 + v * dt # Since psi is zero, cos(0) = 1, can leave out
-        pred_py = 0.0 # Since sin(0) = 0, y stays as 0 (y + v * 0 * dt)
+        # pred_px = 0.0 + v * dt # Since psi is zero, cos(0) = 1, can leave out
+        # pred_py = 0.0 # Since sin(0) = 0, y stays as 0 (y + v * 0 * dt)
+        # pred_psi = 0.0 + v * - delta / Lf * dt
+
+        pred_px = 0.0 + v * np.cos(coeffs[1]) * dt # Since psi is zero, cos(0) = 1, can leave out
+        pred_py = 0.0 + v * np.sin(coeffs[1]) * dt # Since sin(0) = 0, y stays as 0 (y + v * 0 * dt)
         pred_psi = 0.0 + v * - delta / Lf * dt
+
         pred_v = v + a * dt
         pred_cte = cte + v * np.sin(epsi) * dt
         pred_epsi = epsi + v * -delta / Lf * dt
@@ -191,23 +197,19 @@ class CarController:
         state = [pred_px, pred_py, pred_psi, pred_v, pred_cte, pred_epsi]
 
         # Solve for new actuations (and to show predicted x and y in the future)
+        print("mpc starting : " + datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
         mpc = MPC()
         model = mpc.create_model()
-        ret = mpc.Solve( model, state, coeffs)
+        (x_pred_vals, y_pred_vals, steering_angle, throttle) = mpc.Solve( model, state, coeffs)
+        print("mpc finished : " + datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+        print("")
 
-        steer_value = ret[0] / (np.deg2rad(25) * Lf)
-        throttle_value = ret[1]
+        steer_value = steering_angle / (np.deg2rad(25) * Lf)
+        throttle_value = throttle
 
         # 依算出的角度調整車輪角度
         self.car.set_steering_angle(steer_value)
         self.car.set_throttle(throttle_value)
-
-            
-        # 依計算點與way point的角度檢查是否已超過way point
-        rad_1 = np.arctan2(div_x1, div_y1)
-        rad_2 = np.arctan2(div_x2, div_y2)
-        if abs(rad_1-rad_2) > 1.5:
-            step = 1
 
         return step
 
@@ -366,12 +368,11 @@ class CarController:
         car_width_helf = self.car.car_width /2
         car_length_helf = self.car.car_length / 2
         # 取得車輛方向及角度
-        orientation = self.car.orientation
-        degree = np.rad2deg(orientation)
+        degree = self.car.orientation
 
         orient90 = np.pi / 2 # (PI是180度, 90度為 PI/2 )
         # 用右上象限來算車輛與中心線距離, 因此 mod 90度 (0度車輛朝右, 90度朝上)
-        orient = orientation % orient90
+        orient = degree % orient90
         # 計算車輛 x, y 各自的長度
         dx = np.cos(orient) * car_length_helf + np.cos(orient90-orient) * car_width_helf
         dy = np.sin(orient) * car_length_helf + np.sin(orient90-orient) * car_width_helf
@@ -543,31 +544,17 @@ class CarController:
 
         # 取得way points
         way_point = []
-        # for i in range(99,steps,300):
-        for i in steps:
-            # way_point.append(path[i])  # 原始程式
+        psi = np.rad2deg(self.car.orientation)
+        for i in range(steps):
 
-            # 轉換waypoint 座標至汽車座標
+            # 轉換地圖座標原汽車座標
             dx = path[i][0] - self.car.x
             dy = path[i][1] - self.car.y
-            psi = self.car.orientation
             wx = dx * np.cos(-psi) - dy * np.sin(-psi)
-            wy = dy * np.cos(-psi) - dx * np.sin(-psi)
+            wy = dy * np.cos(-psi) + dx * np.sin(-psi)  # 原本是減, 應該是加才對
 
             # 將轉換的座標放到waypoint中
             way_point.append([wx,wy])
-
-        # 將重覆的點去除
-        oldx = int(path[len(path)-1][0])
-        oldy = int(path[len(path)-1][1])
-        for i in range(len(path)-2, -1, -1):
-            x = int(path[i][0])
-            y = int(path[i][1])
-            if oldx == x and oldy == y:
-                del path[i]
-            else:
-                oldx = x
-                oldy = y
 
         return path, way_point
 
